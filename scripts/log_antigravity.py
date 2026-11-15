@@ -149,8 +149,8 @@ def _unquote_arg(val):
     return val
 
 
-def _conv_cwds(transcript: Path) -> set[str]:
-    """All Cwd values that appear in tool calls inside this transcript."""
+def _conv_cwds(transcript: Path, repo_root_n: str = "") -> set[str]:
+    """All Cwd and file path values that appear in tool calls inside this transcript."""
     cwds: set[str] = set()
     try:
         with open(transcript, encoding="utf-8") as f:
@@ -158,6 +158,8 @@ def _conv_cwds(transcript: Path) -> set[str]:
                 line = line.strip()
                 if not line:
                     continue
+                if repo_root_n and repo_root_n in line.lower().replace("/", "\\"):
+                    cwds.add(repo_root_n)
                 try:
                     entry = json.loads(line)
                 except json.JSONDecodeError:
@@ -170,6 +172,14 @@ def _conv_cwds(transcript: Path) -> set[str]:
                         n = _normalize(cwd)
                         if n:
                             cwds.add(n)
+                    for path_key in ("Path", "path", "file_path", "filePath"):
+                        pval = args.get(path_key)
+                        pval = _unquote_arg(pval)
+                        if isinstance(pval, str):
+                            n_path = _normalize(pval)
+                            if n_path:
+                                cwds.add(n_path)
+                                cwds.add(_normalize(str(Path(pval).parent)))
     except OSError:
         pass
     return cwds
@@ -284,7 +294,7 @@ def iter_user_inputs(brain_dirs: list[Path], cutoff: datetime | None,
             if not transcript.exists() or transcript.stat().st_size == 0:
                 continue
 
-            cwds = _conv_cwds(transcript)
+            cwds = _conv_cwds(transcript, repo_root_n)
             # If we have a repo root, skip convs that never touched it.
             if repo_root_n and not _conv_matches_repo(cwds, repo_root_n):
                 continue

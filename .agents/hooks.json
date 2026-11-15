@@ -6,7 +6,7 @@
           {
             "name": "log-prompt",
             "type": "command",
-            "command": "bash scripts/_pyrun.sh scripts/log_antigravity.py --hook",
+            "command": "python scripts/log_antigravity.py --hook || python3 scripts/log_antigravity.py --hook || bash scripts/_pyrun.sh scripts/log_antigravity.py --hook",
             "timeout": 15
           }
         ]
