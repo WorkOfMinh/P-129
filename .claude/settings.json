@@ -1,3 +1,4 @@
+
 {
   "hooks": {
     "UserPromptSubmit": [
@@ -5,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "& \"D:/app/Git/usr/bin/bash.exe\" \"scripts/_pyrun.sh\" \"scripts/log_hook.py\" \"--tool=claude\""
+            "command": "\"/d/app/Git/usr/bin/bash.exe\" \"scripts/_pyrun.sh\" \"scripts/log_hook.py\" \"--tool=claude\""
           }
         ]
       }
