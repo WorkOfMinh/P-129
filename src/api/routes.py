@@ -69,3 +69,20 @@ async def chat_resume(request: ResumeRequest) -> ChatResponse:
 async def agent_status():
     """Kiểm tra trạng thái agent."""
     return {"status": "ready", "agent": "LangGraph Agent v2.0"}
+
+@router.get("/telemetry/moi_nhat")
+async def lay_telemetry_moi_nhat():
+    """Trả một bản ghi mô phỏng để thử dashboard trên máy local."""
+    return {
+        "thoi_gian_cap_nhat": "2026-11-15T10:00:00Z",
+        "du_lieu": [
+            {
+                "can_ho": "A101",
+                "thoi_gian": "2026-11-15T09:59:57Z",
+                "nhiet_do": 28.1,
+                "khoi": 6.2,
+                "gas": 0.9,
+                "nuoc": 0.5,
+            }
+        ],
+    }
