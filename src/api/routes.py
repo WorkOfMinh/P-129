@@ -27,6 +27,8 @@ from httpx import RequestError
 from postgrest.exceptions import APIError
 from supabase import create_client
 
+from threading import Lock
+
 logger = logging.getLogger("ai20k.api")
 
 router = APIRouter()
@@ -145,6 +147,8 @@ def bat_chuong_mo_phong(state):
 incident_graph = build_incident_graph(bat_chuong_mo_phong)
 incident_ids = count(start=1)
 
+danh_sach_id: list[int] = []
+khoa_danh_sach = Lock()
 
 @router.post("/su_co", status_code=201)
 def tao_su_co(canh_bao: CanhBaoRequest):
@@ -165,11 +169,36 @@ def tao_su_co(canh_bao: CanhBaoRequest):
             status_code=500,
             detail="Graph chưa trả về yêu cầu BQL duyệt.",
         )
+    with khoa_danh_sach:
+        danh_sach_id.append(su_kien_id)
 
     return {
         "trang_thai": "cho_phe_duyet",
         **interrupts[0].value,
     }
+    
+@router.get("/su_co")
+def lay_su_co(trang_thai: Literal["cho_phe_duyet"] = "cho_phe_duyet"):
+    with khoa_danh_sach:
+        cac_id = danh_sach_id.copy()
+
+    du_lieu = []
+
+    for su_kien_id in reversed(cac_id):
+        config = {"configurable": {"thread_id": f"su-kien-{su_kien_id}"}}
+        snapshot = incident_graph.get_state(config)
+
+        if "cho_duyet" not in snapshot.next:
+            continue
+
+        for task in snapshot.tasks:
+            for yeu_cau in task.interrupts:
+                du_lieu.append({
+                    **yeu_cau.value,
+                    "trang_thai": trang_thai,
+                })
+
+    return {"du_lieu": du_lieu}
     
 @router.post("/su_co/{su_kien_id}/tu_choi")
 def tu_choi_su_co(su_kien_id: int):

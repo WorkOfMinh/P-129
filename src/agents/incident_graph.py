@@ -3,7 +3,7 @@ from typing import TypedDict
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
-
+from src.agents.evidence_analysis import phan_tich_bang_chung
 
 class IncidentState(TypedDict, total=False):
     su_kien_id: int
@@ -12,6 +12,7 @@ class IncidentState(TypedDict, total=False):
     quyet_dinh: str
     ket_qua_thuc_thi: str
     ly_do_thuc_thi: str
+    phan_tich: dict
 
 
 def review(state: IncidentState) -> dict:
@@ -20,6 +21,7 @@ def review(state: IncidentState) -> dict:
         "su_kien_id": state["su_kien_id"],
         "can_ho": state["can_ho"],
         "bang_chung": state["bang_chung"],
+        "phan_tich": state["phan_tich"],
         "de_xuat": "kich_chuong_mo_phong",
     })
 
@@ -54,10 +56,12 @@ def build_incident_graph(actuator):
             }
 
     builder = StateGraph(IncidentState)
+    builder.add_node("phan_tich_bang_chung", phan_tich_bang_chung)
     builder.add_node("cho_duyet", review)
     builder.add_node("kiem_tra_va_bat_chuong", kiem_tra_va_bat_chuong)
 
-    builder.add_edge(START, "cho_duyet")
+    builder.add_edge(START, "phan_tich_bang_chung")
+    builder.add_edge("phan_tich_bang_chung", "cho_duyet")
     builder.add_conditional_edges(
         "cho_duyet",
         lambda state: state["quyet_dinh"],
