@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SentinelIoT — Hệ Thống Giám Sát & Điều Phối An Toàn Chung Cư Thông Minh (Realtime IoT)</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .glass-dark {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-ring {
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .danger-glow {
+      box-shadow: 0 0 25px -5px rgba(239, 68, 68, 0.35);
+    }
+    .safe-glow {
+      box-shadow: 0 0 20px -5px rgba(16, 185, 129, 0.25);
+    }
+    .flash-update {
+      animation: flash-bg 0.6s ease-out;
+    }
+    @keyframes flash-bg {
+      0% { background-color: rgba(99, 102, 241, 0.25); }
+      100% { background-color: transparent; }
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen selection:bg-indigo-500 selection:text-white">
+
+  <!-- ============================================================== -->
+  <!-- TOP GLOBAL APP BAR & ROLE SWITCHER -->
+  <!-- ============================================================== -->
+  <header class="sticky top-0 z-40 bg-slate-900 border-b border-slate-800 text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+
+        <!-- Brand & System Status -->
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-500 flex items-center justify-center shadow-md shadow-indigo-500/25 ring-1 ring-white/20">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-extrabold text-base tracking-tight text-white">SentinelIoT</span>
+              <span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider">v2.0 Pro</span>
+            </div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span>Chu kỳ lấy mẫu: <strong>3s/lần</strong></span>
+              <span class="text-slate-600">|</span>
+              <span class="font-mono text-[10px] text-slate-400" id="live-clock">--:--:--</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Realtime Stream Control Center (Tạm dừng / Tiếp tục / Bước +3s) -->
+        <div class="hidden md:flex items-center gap-2 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700/80 text-xs shadow-inner">
+          <div class="flex items-center gap-1.5">
+            <span class="relative flex h-2.5 w-2.5">
+              <span id="ping-indicator" class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span id="dot-indicator" class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span id="stream-status-badge" class="text-emerald-400 font-bold text-[11px] uppercase tracking-wider">REALTIME (3s)</span>
+          </div>
+          <span class="text-slate-600">|</span>
+          <span class="font-mono text-slate-300 text-[11px]" id="nav-unix-time">unix_time: 12</span>
+          <span class="text-slate-600">|</span>
+          <button id="btn-toggle-stream" onclick="toggleStream()" class="text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded font-mono font-bold transition-all shadow-xs">
+            ⏸ Tạm dừng
+          </button>
+          <button onclick="stepForwardStream()" title="Bước tiếp theo (+3s)" class="text-[10px] bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded font-mono font-bold transition-all shadow-xs">
+            ⏭ +3s
+          </button>
+        </div>
+
+        <!-- Role / Persona Switcher Tabs -->
+        <div class="flex items-center bg-slate-800/90 p-1 rounded-xl border border-slate-700/80 shadow-inner">
+          <button onclick="loginAs('resident_A101')" id="btn-login-A101" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm">
+            <span>👤 Cư dân A101</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          </button>
+          <button onclick="loginAs('resident_A204')" id="btn-login-A204" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-white flex items-center gap-1.5">
+            <span>⚠️ Cư dân A204</span>
+            <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+          </button>
+          <button onclick="loginAs('bql')" id="btn-login-bql" class="px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-white flex items-center gap-1.5">
+            <span>🛡️ Kỹ thuật BQL</span>
+          </button>
+          <button onclick="loginAs('flow')" id="btn-login-flow" class="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-white flex items-center gap-1">
+            <span>📐 Luồng RBAC</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================== -->
+  <!-- CONTEXTUAL SUB-NAV / IDENTITY BANNER -->
+  <!-- ============================================================== -->
+  <div class="bg-white border-b border-slate-200/80 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5 flex flex-col sm:flex-row items-center justify-between gap-2">
+
+      <!-- Current identity & permissions badge -->
+      <div class="flex items-center gap-2.5 text-xs text-slate-600 w-full sm:w-auto" id="identity-banner">
+        <!-- Injected via JS -->
+      </div>
+
+      <!-- Persona Sub-Tabs Switcher -->
+      <div class="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto justify-start sm:justify-end" id="sub-navigation-tabs">
+        <!-- Injected via JS -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- MAIN WORKSPACE CONTAINER -->
+  <!-- ============================================================== -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ============================================================ -->
+    <!-- VIEW 1: PHÂN HỆ CƯ DÂN (RESIDENT APP VIEW)                   -->
+    <!-- ============================================================ -->
+    <div id="view-resident" class="space-y-6">
+
+      <!-- ================== RESIDENT TAB 1: OVERVIEW ================ -->
+      <div id="res-tab-1" class="space-y-6">
+
+        <!-- Overall Apartment Health Header Card (Realtime Indicator Included) -->
+        <div id="res-hero-banner" class="rounded-2xl p-6 border transition-all duration-300 relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-white border-emerald-200 safe-glow">
+          <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="space-y-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span id="res-badge-status" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  Trạng thái khu: Bình thường
+                </span>
+
+                <!-- Cập nhật realtime badge (Giữ trọn vẹn yêu cầu realtime) -->
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white text-emerald-700 border border-emerald-200 shadow-2xs">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  </span>
+                  Cập nhật realtime
+                </span>
+
+                <!-- unix_time live ticker -->
+                <span id="res-telemetry-time" class="font-mono text-xs text-slate-700 bg-white/90 border border-slate-200 px-3 py-1 rounded-full font-bold flex items-center gap-1.5 shadow-2xs">
+                  <span class="text-indigo-600 font-extrabold">unix_time: 12</span> · 2026-11-01 08:00:12
+                </span>
+
+                <!-- Next sync countdown -->
+                <span id="res-next-sync-countdown" class="font-mono text-[11px] text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md font-semibold">
+                  Nhịp kế: 3s
+                </span>
+              </div>
+
+              <h2 class="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight" id="res-title-greeting">
+                Không gian sống Căn hộ A101 đang an toàn
+              </h2>
+              <p class="text-xs sm:text-sm text-slate-600 max-w-2xl" id="res-desc-greeting">
+                Tất cả 4 cảm biến môi trường (Khói, Khí Gas, Nhiệt độ, Mực nước) đều nằm trong giới hạn cho phép.
+              </p>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <button onclick="goToResidentDetail()" id="res-btn-view-alert" class="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-2">
+                <span>Xem phân tích chi tiết</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4 SENSOR METRICS CARDS (Chỉ ghi rõ đơn vị đo: ppm, % LEL, °C, cm) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+          <!-- 1. Cảm biến Khói (ppm) -->
+          <div id="card-khoi" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div id="icon-bg-khoi" class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Khói</h3>
+                  <span class="text-[11px] font-medium text-slate-400">Đơn vị: ppm</span>
+                </div>
+              </div>
+              <span id="badge-khoi" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                An toàn
+              </span>
+            </div>
+
+            <div class="pt-1">
+              <div class="flex items-baseline gap-1.5">
+                <span id="val-khoi" class="text-3xl font-extrabold font-mono text-slate-900 tracking-tight transition-all">5.49</span>
+                <span class="text-sm font-semibold text-slate-500">ppm</span>
+              </div>
+              <!-- Visual Level Gauge Progress Bar -->
+              <div class="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+                <div id="bar-khoi" class="bg-blue-500 h-2 rounded-full transition-all duration-500" style="width: 15%;"></div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span class="text-slate-500" id="subtext-khoi">Ngưỡng chuẩn an toàn: &lt; 15 ppm</span>
+              <span class="font-mono font-bold text-slate-400" id="delta-khoi">±0.00</span>
+            </div>
+          </div>
+
+          <!-- 2. Cảm biến Khí Gas (% LEL) -->
+          <div id="card-gas" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div id="icon-bg-gas" class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Khí Gas</h3>
+                  <span class="text-[11px] font-medium text-slate-400">Đơn vị: % LEL</span>
+                </div>
+              </div>
+              <span id="badge-gas" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                An toàn
+              </span>
+            </div>
+
+            <div class="pt-1">
+              <div class="flex items-baseline gap-1.5">
+                <span id="val-gas" class="text-3xl font-extrabold font-mono text-slate-900 tracking-tight transition-all">0.364</span>
+                <span class="text-sm font-semibold text-slate-500">% LEL</span>
+              </div>
+              <!-- Progress Bar -->
+              <div class="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+                <div id="bar-gas" class="bg-amber-500 h-2 rounded-full transition-all duration-500" style="width: 7%;"></div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span class="text-slate-500" id="subtext-gas">Ngưỡng báo động: &ge; 5% LEL</span>
+              <span class="font-mono font-bold text-slate-400" id="delta-gas">±0.000</span>
+            </div>
+          </div>
+
+          <!-- 3. Cảm biến Nhiệt độ (°C) -->
+          <div id="card-nhiet" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div id="icon-bg-nhiet" class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Nhiệt độ</h3>
+                  <span class="text-[11px] font-medium text-slate-400">Đơn vị: °C</span>
+                </div>
+              </div>
+              <span id="badge-nhiet" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Ổn định
+              </span>
+            </div>
+
+            <div class="pt-1">
+              <div class="flex items-baseline gap-1.5">
+                <span id="val-nhiet" class="text-3xl font-extrabold font-mono text-slate-900 tracking-tight transition-all">24.44</span>
+                <span class="text-sm font-semibold text-slate-500">°C</span>
+              </div>
+              <!-- Progress Bar -->
+              <div class="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+                <div id="bar-nhiet" class="bg-rose-500 h-2 rounded-full transition-all duration-500" style="width: 35%;"></div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span class="text-slate-500" id="subtext-nhiet">Môi trường tiêu chuẩn: 20°C - 35°C</span>
+              <span class="font-mono font-bold text-slate-400" id="delta-nhiet">±0.00</span>
+            </div>
+          </div>
+
+          <!-- 4. Cảm biến Mực nước (cm) -->
+          <div id="card-nuoc" class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs hover:shadow-md transition-all space-y-3 group">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div id="icon-bg-nuoc" class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center transition-colors">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Mực nước</h3>
+                  <span class="text-[11px] font-medium text-slate-400">Đơn vị: cm</span>
+                </div>
+              </div>
+              <span id="badge-nuoc" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Khô ráo
+              </span>
+            </div>
+
+            <div class="pt-1">
+              <div class="flex items-baseline gap-1.5">
+                <span id="val-nuoc" class="text-3xl font-extrabold font-mono text-slate-900 tracking-tight transition-all">0.47</span>
+                <span class="text-sm font-semibold text-slate-500">cm</span>
+              </div>
+              <!-- Progress Bar -->
+              <div class="w-full bg-slate-100 rounded-full h-2 mt-2 overflow-hidden">
+                <div id="bar-nuoc" class="bg-cyan-500 h-2 rounded-full transition-all duration-500" style="width: 5%;"></div>
+              </div>
+            </div>
+
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span class="text-slate-500" id="subtext-nuoc">Mức an toàn sàn: &lt; 1.0 cm</span>
+              <span class="font-mono font-bold text-slate-400" id="delta-nuoc">±0.00</span>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Call to Action Banner & Safety Feed Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+          <!-- Alert Callout Card -->
+          <div id="res-alert-card" onclick="goToResidentDetail()" class="lg:col-span-2 bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Thông Báo An Toàn Mới Nhất
+                </span>
+                <span class="text-xs font-semibold text-indigo-600 group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                  Xem chi tiết hướng dẫn →
+                </span>
+              </div>
+              <h4 id="res-alert-card-title" class="text-base sm:text-lg font-bold text-slate-900">
+                Không phát hiện mối đe dọa cháy nổ hoặc ngập nước
+              </h4>
+              <p id="res-alert-card-desc" class="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                Hệ thống cảm biến IoT liên tục đo lường nhiệt độ, nồng độ khói, khí gas và mực nước mỗi 3 giây.
+              </p>
+            </div>
+
+            <div class="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span class="flex items-center gap-1.5 font-medium">
+                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                Hệ thống AI tương quan: Trực tuyến
+              </span>
+              <span class="font-mono text-[11px] text-slate-400" id="res-alert-timestamp">2026-11-01 08:00:12</span>
+            </div>
+          </div>
+
+          <!-- Quick Actions & Community Safety Feed -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <h4 class="text-sm font-bold text-slate-900 flex items-center justify-between">
+              <span>Lịch sử trạng thái gần đây</span>
+              <span class="text-[10px] text-slate-400 uppercase font-mono">Realtime feed</span>
+            </h4>
+            <div id="res-history-feed" class="space-y-3 text-xs">
+              <!-- Feed items injected via JS -->
+            </div>
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <button onclick="showQuickSupportModal()" class="text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1">
+                <span>📞 Hotline PCCC BQL</span>
+              </button>
+              <button onclick="alert('Đã tải hướng dẫn an toàn tòa nhà!')" class="text-xs font-semibold text-indigo-600 hover:text-indigo-800">
+                Cẩm nang thoát hiểm ▾
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ================== RESIDENT TAB 2: EMERGENCY & EVACUATION GUIDE ================ -->
+      <div id="res-tab-2" class="space-y-6 hidden">
+
+        <!-- Navigation Back Bar -->
+        <div class="flex items-center justify-between">
+          <button onclick="goToResidentOverview()" class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 shadow-xs hover:bg-slate-50 transition-all">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            <span>Quay lại trang tổng quan</span>
+          </button>
+          <span class="text-xs font-mono text-slate-400" id="incident-ticket-id">Mã sự cố: #INC-2026-883</span>
+        </div>
+
+        <!-- Severity Danger Banner -->
+        <div id="res-detail-danger-banner" class="rounded-2xl p-6 border transition-all duration-300 bg-gradient-to-r from-rose-500/10 via-rose-500/5 to-white border-rose-200 danger-glow">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+                  Mức nguy hiểm: CAO
+                </span>
+                <span class="text-xs font-semibold text-rose-700">Nguy cơ cháy bùng phát</span>
+              </div>
+              <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight" id="res-detail-danger-title">
+                Phát hiện gia tăng nhiệt độ và nồng độ khói tại căn hộ
+              </h2>
+              <p class="text-xs sm:text-sm text-slate-600">
+                Hệ thống AI khuyến cáo cư dân chuẩn bị sơ tán ngay lập tức theo cầu thang bộ.
+              </p>
+            </div>
+
+            <div class="shrink-0 flex items-center gap-2">
+              <button onclick="alert('🚨 ĐÃ KẾT NỐI TRỰC TIẾP ĐẾN TRỰC BAN PCCC TOÀ NHÀ!\nNhân viên hỗ trợ sẽ gọi lại trong 10 giây.')" class="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/30 transition-all flex items-center gap-1.5">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+                <span>Gọi Khẩn Cấp BQL</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Breakdown & AI Reasoning Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Telemetry Evidence Cards (Đơn vị đo chuẩn: ppm, °C, % LEL, cm) -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                Chỉ số cảm biến môi trường đo được
+              </h3>
+              <span class="text-[11px] font-mono text-slate-400">Chu kỳ lấy mẫu: 3s</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3" id="res-detail-telemetry-grid">
+              <!-- Telemetry items injected via JS -->
+            </div>
+
+            <div class="text-[11px] text-slate-500 pt-2 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+              <span>Xác thực cảm biến: Đã kiểm định chữ ký điện tử SHA-256 từ nút IoT phần cứng.</span>
+            </div>
+          </div>
+
+          <!-- AI Reasoning Card (LangGraph Correlation Engine) -->
+          <div class="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-white rounded-2xl p-6 border border-amber-200/80 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-amber-200/60 pb-3">
+              <h3 class="text-sm font-bold text-amber-900 flex items-center gap-2">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Phân tích & Suy luận từ AI Agent
+              </h3>
+              <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                Độ tin cậy: 98%
+              </span>
+            </div>
+
+            <p class="text-xs sm:text-sm text-slate-700 leading-relaxed font-medium" id="res-detail-ai-reasoning">
+              Nhiệt độ môi trường (52°C) và nồng độ khói (38 ppm) đồng thời tăng vọt trong 60 giây gần nhất tại khu vực căn hộ. Hệ số tương quan đa cảm biến đạt r = 0.94 vượt ngưỡng báo động cháy, loại trừ hiện tượng báo động giả do khói nấu ăn thông thường.
+            </p>
+
+            <div class="bg-white/80 rounded-xl p-3 border border-amber-200 text-xs text-amber-950 space-y-1">
+              <div class="font-bold flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Quy tắc an toàn hệ thống:
+              </div>
+              <p class="text-[11px] text-slate-600">
+                Cư dân không can thiệp vào tủ điện hoặc van gas tòa nhà. Mọi thao tác phần cứng sẽ do Kỹ thuật BQL phê duyệt qua cổng HITL.
+              </p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Evacuation Protocol & Instructions (Thiết kế trực quan rõ ràng) -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-5">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Quy trình Hướng dẫn Thoát hiểm Khẩn cấp</h3>
+              <p class="text-xs text-slate-500">Thực hiện theo các bước dưới đây để đảm bảo an toàn tính mạng tuyệt đối</p>
+            </div>
+            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Lối thoát: Cầu thang bộ số 2
+            </span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <!-- Step 1 -->
+            <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 hover:bg-white hover:shadow-xs transition-all">
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">1</span>
+                <h4 class="text-xs font-bold text-slate-900">Bảo vệ đường thở</h4>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Dùng khăn ẩm hoặc khẩu trang che kín mũi và miệng để lọc khói độc và hơi nóng.
+              </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2 hover:bg-white hover:shadow-xs transition-all">
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">2</span>
+                <h4 class="text-xs font-bold text-slate-900">Di chuyển sát mặt sàn</h4>
+              </div>
+              <p class="text-xs text-slate-600 leading-relaxed">
+                Hạ thấp người, men theo bờ tường đi nhanh về phía cửa thoát hiểm thang bộ tầng 2.
+              </p>
+            </div>
+
+            <!-- Step 3 (Cực kỳ quan trọng) -->
+            <div class="p-4 rounded-xl border border-rose-200 bg-rose-50/40 space-y-2 hover:bg-rose-50/70 transition-all">
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-rose-600 text-white flex items-center justify-center font-bold text-xs">3</span>
+                <h4 class="text-xs font-bold text-rose-900">Tuyệt đối không dùng thang máy</h4>
+              </div>
+              <p class="text-xs text-rose-700 leading-relaxed">
+                Hệ thống thang máy có thể bị ngắt điện khẩn cấp. Chỉ dùng cầu thang bộ có cửa chống cháy.
+              </p>
+            </div>
+
+          </div>
+
+          <!-- Bottom Action Buttons for Resident -->
+          <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button onclick="confirmEvacuationSafety()" class="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              <span>Tôi đã sơ tán đến điểm an toàn</span>
+            </button>
+
+            <button onclick="alert('🚨 ĐÃ GỌI ĐƯỜNG DÂY NÓNG PCCC BAN QUẢN LÝ TÒA NHÀ!\nTổng đài viên đã nhận định vị trí của bạn.')" class="w-full sm:w-auto px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/20 transition-all flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>
+              <span>Gọi SOS Khẩn Cấp BQL</span>
+            </button>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- VIEW 2: BAN QUẢN LÝ (BMS OPERATIONS CONSOLE)                 -->
+    <!-- ============================================================ -->
+    <div id="view-bql" class="space-y-6 hidden">
+
+      <!-- Executive KPI Cards Header -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tổng căn hộ</div>
+            <div class="text-xl font-extrabold text-slate-900 font-mono">4 Căn hộ</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">An toàn ổn định</div>
+            <div class="text-xl font-extrabold text-emerald-600 font-mono">3 / 4</div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-rose-200 bg-rose-50/30 shadow-xs flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-rose-600 uppercase tracking-wider">Cần duyệt HITL</div>
+            <div class="text-xl font-extrabold text-rose-700 font-mono flex items-center gap-2">
+              <span>1 Phiếu</span>
+              <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          </div>
+          <div>
+            <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Tần số Lấy mẫu</div>
+            <div class="text-xl font-extrabold text-indigo-600 font-mono">3 Giây/lần</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================== BQL TAB 1: REALTIME TELEMETRY MONITORING ================ -->
+      <div id="bql-tab-1" class="space-y-4">
+
+        <!-- Table Toolbar -->
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">
+              Bảng Giám Sát Cảm Biến Các Căn Hộ
+            </h3>
+
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+              Cập nhật realtime
+            </span>
+
+            <span class="text-xs text-slate-700 font-mono bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md font-bold" id="bql-telemetry-time">
+              unix_time: 12 (Chu kỳ 3s)
+            </span>
+
+            <span class="font-mono text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-md font-semibold" id="bql-next-sync-countdown">
+              Gói tin kế tiếp: 3s
+            </span>
+          </div>
+
+          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-medium text-slate-600">
+              <button class="px-2.5 py-1 rounded-lg bg-white shadow-xs font-bold text-slate-900">Tất cả (4)</button>
+              <button class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900">Cảnh báo (1)</button>
+              <button class="px-2.5 py-1 rounded-lg text-slate-600 hover:text-slate-900">An toàn (3)</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Telemetry Data Table (Chỉ ghi đơn vị đo, không ghi mã biến kỹ thuật) -->
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th class="py-3.5 px-4">Căn hộ</th>
+                  <th class="py-3.5 px-3">Nhiệt độ (°C)</th>
+                  <th class="py-3.5 px-3">Khói (ppm)</th>
+                  <th class="py-3.5 px-3">Khí Gas (% LEL)</th>
+                  <th class="py-3.5 px-3">Mực nước (cm)</th>
+                  <th class="py-3.5 px-3">Trạng thái an toàn</th>
+                  <th class="py-3.5 px-4 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 font-mono text-slate-700">
+
+                <!-- A101 (Safe) -->
+                <tr id="bql-row-A101" class="hover:bg-slate-50/80 transition-colors">
+                  <td class="py-4 px-4 font-bold text-slate-900 font-sans flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>A101</span>
+                    <span class="text-[10px] text-slate-400 font-normal">Tầng 1</span>
+                  </td>
+                  <td class="py-4 px-3" id="bql-nhiet-A101">24.44 °C</td>
+                  <td class="py-4 px-3" id="bql-khoi-A101">5.49 ppm</td>
+                  <td class="py-4 px-3" id="bql-gas-A101">0.364 %</td>
+                  <td class="py-4 px-3" id="bql-nuoc-A101">0.47 cm</td>
+                  <td class="py-4 px-3 font-sans">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      Bình thường
+                    </span>
+                  </td>
+                  <td class="py-4 px-4 text-right font-sans">
+                    <span class="text-xs text-slate-400 font-medium">Ổn định</span>
+                  </td>
+                </tr>
+
+                <!-- A204 (Fire threat - Needs HITL) -->
+                <tr id="bql-row-A204" class="bg-rose-50/60 hover:bg-rose-50 text-rose-950 transition-colors">
+                  <td class="py-4 px-4 font-bold text-rose-900 font-sans flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping"></span>
+                    <span>A204</span>
+                    <span class="text-[10px] bg-rose-200 text-rose-800 font-bold px-1.5 py-0.5 rounded">Tầng 2</span>
+                  </td>
+                  <td class="py-4 px-3 font-bold text-rose-700" id="bql-nhiet-A204">52.00 °C</td>
+                  <td class="py-4 px-3 font-bold text-rose-700" id="bql-khoi-A204">38.00 ppm</td>
+                  <td class="py-4 px-3" id="bql-gas-A204">1.250 %</td>
+                  <td class="py-4 px-3" id="bql-nuoc-A204">0.50 cm</td>
+                  <td class="py-4 px-3 font-sans">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-300">
+                      Nguy cơ cháy
+                    </span>
+                  </td>
+                  <td class="py-4 px-4 text-right font-sans">
+                    <button onclick="goToHITL('A204')" class="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg shadow-sm shadow-rose-600/30 transition-all flex items-center gap-1.5 ml-auto">
+                      <span>Duyệt lệnh HITL</span>
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                    </button>
+                  </td>
+                </tr>
+
+                <!-- B110 (Gas warning) -->
+                <tr id="bql-row-B110" class="hover:bg-slate-50/80 transition-colors">
+                  <td class="py-4 px-4 font-bold text-slate-900 font-sans flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <span>B110</span>
+                    <span class="text-[10px] text-slate-400 font-normal">Tầng 1</span>
+                  </td>
+                  <td class="py-4 px-3" id="bql-nhiet-B110">26.50 °C</td>
+                  <td class="py-4 px-3" id="bql-khoi-B110">6.20 ppm</td>
+                  <td class="py-4 px-3 font-bold text-amber-600" id="bql-gas-B110">12.800 %</td>
+                  <td class="py-4 px-3" id="bql-nuoc-B110">0.40 cm</td>
+                  <td class="py-4 px-3 font-sans">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      Rò rỉ Gas
+                    </span>
+                  </td>
+                  <td class="py-4 px-4 text-right font-sans">
+                    <span class="text-xs text-amber-600 font-medium">Theo dõi van</span>
+                  </td>
+                </tr>
+
+                <!-- C301 (Water level) -->
+                <tr id="bql-row-C301" class="hover:bg-slate-50/80 transition-colors">
+                  <td class="py-4 px-4 font-bold text-slate-900 font-sans flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-cyan-500"></span>
+                    <span>C301</span>
+                    <span class="text-[10px] text-slate-400 font-normal">Tầng 3</span>
+                  </td>
+                  <td class="py-4 px-3" id="bql-nhiet-C301">24.80 °C</td>
+                  <td class="py-4 px-3" id="bql-khoi-C301">5.10 ppm</td>
+                  <td class="py-4 px-3" id="bql-gas-C301">0.420 %</td>
+                  <td class="py-4 px-3 font-bold text-cyan-600" id="bql-nuoc-C301">22.50 cm</td>
+                  <td class="py-4 px-3 font-sans">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200">
+                      Ngập nước sàn
+                    </span>
+                  </td>
+                  <td class="py-4 px-4 text-right font-sans">
+                    <span class="text-xs text-cyan-600 font-medium">Theo dõi bơm</span>
+                  </td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================== BQL TAB 2: HITL PHYSICAL ACTION APPROVAL ================ -->
+      <div id="bql-tab-2" class="space-y-6 hidden">
+
+        <!-- Emergency Dispatch Card Header -->
+        <div class="rounded-2xl p-6 bg-gradient-to-r from-rose-500/10 via-rose-500/5 to-white border border-rose-200 shadow-md space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-rose-200/60 pb-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span>
+                  YÊU CẦU DUYỆT KHẨN CẤP (HITL GATE)
+                </span>
+                <span class="text-xs font-mono font-bold text-slate-600">PHIẾU #INC-883</span>
+              </div>
+              <h2 class="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                Xác Nhận Kích Hoạt Thiết Bị Vật Lý — Tầng 2, Khu Vực A-204
+              </h2>
+            </div>
+
+            <!-- Countdown Timer Badge (02:00 đếm ngược an toàn) -->
+            <div class="shrink-0 bg-white rounded-2xl p-3 border border-rose-200 shadow-xs flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+                <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Thời gian còn lại</div>
+                <div class="text-2xl font-black font-mono text-rose-600" id="countdown-timer">02:00</div>
+              </div>
+            </div>
+          </div>
+
+          <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
+            Theo nguyên tắc an toàn PRD FR-5: Trí tuệ nhân tạo (AI) <strong>không tự ý kích hoạt các thiết bị vật lý</strong>. Kỹ thuật viên BMS bắt buộc phải đối chiếu dữ liệu cảm biến đo lường và đưa ra quyết định phê duyệt.
+          </p>
+        </div>
+
+        <!-- Telemetry Comparison & Multi-Sensor Reasoning Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Telemetry Verification Table -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4">
+            <h3 class="text-sm font-bold text-slate-900 flex items-center justify-between">
+              <span>1. Đối chiếu chỉ số cảm biến đo lường</span>
+              <span class="text-[10px] font-mono text-slate-400">Hardware Verified</span>
+            </h3>
+
+            <div class="space-y-2.5 text-xs font-mono">
+
+              <!-- Nhiệt độ -->
+              <div class="p-3 rounded-xl bg-rose-50/60 border border-rose-200 flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-rose-900 font-sans">Nhiệt độ môi trường</div>
+                  <div class="text-slate-500 font-sans text-[11px]">Ngưỡng an toàn: &lt; 50.00 °C</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-base font-extrabold text-rose-700" id="hitl-nhiet">52.00 °C</div>
+                  <div class="text-[10px] font-bold text-rose-600 font-sans">Vượt ngưỡng (+2.00 °C)</div>
+                </div>
+              </div>
+
+              <!-- Khói -->
+              <div class="p-3 rounded-xl bg-rose-50/60 border border-rose-200 flex items-center justify-between">
+                <div>
+                  <div class="font-bold text-rose-900 font-sans">Nồng độ khói</div>
+                  <div class="text-slate-500 font-sans text-[11px]">Ngưỡng chuẩn baseline: 12.00 ppm</div>
+                </div>
+                <div class="text-right">
+                  <div class="text-base font-extrabold text-rose-700" id="hitl-khoi">38.00 ppm</div>
+                  <div class="text-[10px] font-bold text-rose-600 font-sans">Gấp 3.1 lần bình thường</div>
+                </div>
+              </div>
+
+              <!-- Khí Gas & Nước -->
+              <div class="grid grid-cols-2 gap-2 text-slate-700 font-sans">
+                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div class="text-[11px] text-slate-500">Khí Gas</div>
+                  <div class="font-bold font-mono text-slate-900" id="hitl-gas">1.250 % LEL</div>
+                  <div class="text-[10px] text-emerald-600 font-medium">An toàn (&lt; 5%)</div>
+                </div>
+                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200">
+                  <div class="text-[11px] text-slate-500">Mực nước</div>
+                  <div class="font-bold font-mono text-slate-900" id="hitl-nuoc">0.50 cm</div>
+                  <div class="text-[10px] text-emerald-600 font-medium">Bình thường (&lt; 1cm)</div>
+                </div>
+              </div>
+
+            </div>
+
+            <div class="text-[11px] text-slate-500 border-t border-slate-100 pt-3">
+              Cảm biến xác thực: <code>TEMP-204</code>, <code>SMOKE-204</code> (Chứng chỉ phần cứng SHA-256 hợp lệ).
+            </div>
+          </div>
+
+          <!-- Suggested Action & AI Correlation Reason -->
+          <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-4 flex flex-col justify-between">
+            <div class="space-y-4">
+              <h3 class="text-sm font-bold text-slate-900 flex items-center justify-between">
+                <span>2. Đề xuất hành động từ LangGraph Agent</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                  Hệ số r = 0.94
+                </span>
+              </h3>
+
+              <div class="p-4 rounded-xl bg-amber-50/60 border border-amber-200 space-y-1.5 text-xs text-slate-700">
+                <span class="font-bold text-amber-900">Lý do suy luận tương quan:</span>
+                <p class="leading-relaxed">
+                  Tốc độ tăng nhiệt độ đo được 8°C/phút đi kèm nồng độ khói tăng vọt gấp 3 lần baseline trong cùng 60 giây gần nhất tại phân khu A-204. Xác nhận sự cố cháy thật sự, cần cách ly ngay nguồn năng lượng.
+                </p>
+              </div>
+
+              <!-- Detailed Actions to Trigger -->
+              <div class="space-y-2">
+                <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Hành động vật lý sẽ thực thi:</span>
+
+                <div class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800">
+                  <span class="w-5 h-5 rounded-md bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">🔔</span>
+                  <span>1. Kích hoạt chuông báo cháy phân vùng căn hộ A-204 (giảm hoảng loạn toàn khu).</span>
+                </div>
+
+                <div class="flex items-center gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-800">
+                  <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">⚡</span>
+                  <span>2. Đóng van điện từ cấp gas tổng hành lang tầng 2.</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Fail-safe reminder note -->
+            <div class="p-3 rounded-xl bg-slate-100 text-[11px] text-slate-500 italic mt-2">
+              * Nếu sau 02:00 không có phản hồi từ kỹ thuật viên, hệ thống sẽ kích hoạt quy trình tự động Fail-Safe theo chính sách an toàn tòa nhà (PRD FR-5).
+            </div>
+          </div>
+
+        </div>
+
+        <!-- 2 Big Action Buttons: Duyệt & Từ chối (Không có duyệt hàng loạt) -->
+        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+            <button onclick="approveHITLAction()" class="py-4 px-6 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-md shadow-emerald-600/25 transition-all flex items-center justify-center gap-2.5">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+              <span>Duyệt & Thực Thi Lệnh Vật Lý</span>
+            </button>
+
+            <button onclick="openRejectHITLModal()" class="py-4 px-6 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 font-bold text-sm transition-all flex items-center justify-center gap-2.5">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"/></svg>
+              <span>Từ Chối Lệnh + Nhập Lý Do</span>
+            </button>
+
+          </div>
+
+          <div class="text-center text-xs text-slate-400 font-medium pt-1">
+            🔒 Nguyên tắc an toàn bất biến: Nghiêm cấm nút "Duyệt hàng loạt" để phòng ngừa thao tác sai lệch diện rộng.
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================== BQL TAB 3: IMMUTABLE AUDIT LOG ================ -->
+      <div id="bql-tab-3" class="space-y-4 hidden">
+
+        <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 uppercase tracking-wide">
+              Sổ Nhật Ký Sự Cố Bất Biến (PRD FR-8 Audit Trail)
+            </h3>
+            <p class="text-xs text-slate-500">Mọi thao tác duyệt hoặc từ chối đều được ký điện tử lưu vết pháp lý</p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-500">Lọc theo mức độ:</span>
+            <select class="text-xs bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 font-medium text-slate-700">
+              <option>Tất cả mức độ</option>
+              <option>Khẩn cấp / Cao</option>
+              <option>Trung bình</option>
+              <option>Thấp</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-700 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                <tr>
+                  <th class="py-3.5 px-4">Thời gian</th>
+                  <th class="py-3.5 px-3">Khu vực / Căn hộ</th>
+                  <th class="py-3.5 px-3">Mức độ</th>
+                  <th class="py-3.5 px-4">Nguyên nhân phát hiện</th>
+                  <th class="py-3.5 px-3">Trạng thái xử lý</th>
+                  <th class="py-3.5 px-4 text-right">Chi tiết</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 bg-white" id="audit-log-rows">
+
+                <tr onclick="showAuditModal('Hôm nay 10:02', 'A-204', 'Cao', 'Nhiệt độ 52°C + Khói 38 ppm tăng vọt', 'Đã duyệt thực thi')" class="hover:bg-slate-50 cursor-pointer transition-colors">
+                  <td class="py-4 px-4 font-mono font-medium text-slate-800">Hôm nay 10:02</td>
+                  <td class="py-4 px-3 font-bold text-slate-900">A-204</td>
+                  <td class="py-4 px-3 font-semibold text-rose-600">
+                    <span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Cao</span>
+                  </td>
+                  <td class="py-4 px-4 text-slate-700">Nhiệt độ 52°C + Khói 38 ppm tăng vọt</td>
+                  <td class="py-4 px-3 font-bold text-emerald-700">Đã duyệt thực thi</td>
+                  <td class="py-4 px-4 text-right text-indigo-600 font-semibold hover:underline">Xem chữ ký →</td>
+                </tr>
+
+                <tr onclick="showAuditModal('Hôm nay 09:40', 'B-110', 'Trung bình', 'Khí Gas vượt ngưỡng 12.8% LEL', 'Đã ghi nhận')" class="hover:bg-slate-50 cursor-pointer transition-colors">
+                  <td class="py-4 px-4 font-mono font-medium text-slate-800">Hôm nay 09:40</td>
+                  <td class="py-4 px-3 font-bold text-slate-900">B-110</td>
+                  <td class="py-4 px-3 font-semibold text-amber-600">
+                    <span class="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Trung bình</span>
+                  </td>
+                  <td class="py-4 px-4 text-slate-700">Khí Gas vượt ngưỡng 12.8% LEL</td>
+                  <td class="py-4 px-3 font-medium text-slate-600">Đã ghi nhận</td>
+                  <td class="py-4 px-4 text-right text-indigo-600 font-semibold hover:underline">Xem chữ ký →</td>
+                </tr>
+
+                <tr onclick="showAuditModal('Hôm qua 22:15', 'A-101', 'Thấp', 'Nhiệt độ dao động nhẹ 26.5°C', 'Bình thường')" class="hover:bg-slate-50 cursor-pointer transition-colors">
+                  <td class="py-4 px-4 font-mono font-medium text-slate-800">Hôm qua 22:15</td>
+                  <td class="py-4 px-3 font-bold text-slate-900">A-101</td>
+                  <td class="py-4 px-3 font-semibold text-emerald-600">
+                    <span class="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">Thấp</span>
+                  </td>
+                  <td class="py-4 px-4 text-slate-700">Nhiệt độ dao động nhẹ 26.5°C</td>
+                  <td class="py-4 px-3 font-medium text-slate-600">Bình thường</td>
+                  <td class="py-4 px-4 text-right text-indigo-600 font-semibold hover:underline">Xem chữ ký →</td>
+                </tr>
+
+                <tr onclick="showAuditModal('12/11 08:05', 'C-301', 'Khẩn cấp', 'Nước ngập sàn vượt 22.5 cm', 'Tự động kích hoạt bơm')" class="hover:bg-slate-50 cursor-pointer transition-colors">
+                  <td class="py-4 px-4 font-mono font-medium text-slate-800">12/11 08:05</td>
+                  <td class="py-4 px-3 font-bold text-slate-900">C-301</td>
+                  <td class="py-4 px-3 font-semibold text-rose-600">
+                    <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">Khẩn cấp</span>
+                  </td>
+                  <td class="py-4 px-4 text-slate-700">Nước ngập sàn vượt 22.5 cm</td>
+                  <td class="py-4 px-3 font-bold text-blue-700">Tự động kích hoạt bơm</td>
+                  <td class="py-4 px-4 text-right text-indigo-600 font-semibold hover:underline">Xem chữ ký →</td>
+                </tr>
+
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- VIEW 3: KIẾN TRÚC PHÂN LUỒNG RBAC (UI FLOW ARCHITECTURE)     -->
+    <!-- ============================================================ -->
+    <div id="view-flow" class="space-y-6 hidden">
+
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs space-y-2">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-slate-900">Sơ Đồ Phân Định Quyền Lực & Luồng Màn Hình (RBAC Matrix)</h2>
+          <span class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+            PRD v3.0 Compliance
+          </span>
+        </div>
+        <p class="text-xs sm:text-sm text-slate-600">
+          Hệ thống SentinelIoT phân lập ranh giới quyền lực tuyệt đối giữa <strong>Cư dân</strong> (Read-only + Hướng dẫn thoát hiểm) và <strong>Ban Quản Lý</strong> (Thẩm định dữ liệu + Duyệt lệnh vật lý HITL).
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+        <!-- Column 1: Cư Dân -->
+        <div class="bg-gradient-to-b from-blue-50/50 to-white rounded-2xl p-6 border-2 border-blue-200 shadow-xs space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-blue-900 bg-blue-100 px-3 py-1 rounded-full">
+              1. Phân Hệ Cư Dân (Resident)
+            </span>
+            <span class="text-xs text-blue-700 font-mono">Mobile / Web App</span>
+          </div>
+
+          <div class="space-y-3">
+            <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">1</span>
+                <strong class="text-xs font-bold text-slate-900">Màn hình 1 — Tổng quan cảm biến căn hộ</strong>
+              </div>
+              <p class="text-xs text-slate-500">
+                Hiển thị 4 thẻ đo lường chuẩn đơn vị: Khói (ppm), Khí Gas (% LEL), Nhiệt độ (°C), Mực nước (cm). Chỉ xem dữ liệu căn hộ mình.
+              </p>
+            </div>
+
+            <div class="text-center font-bold text-blue-600 text-xs py-1">
+              ↓ Nhấn vào thông báo cảnh báo nguy hiểm
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center font-bold text-xs">2</span>
+                <strong class="text-xs font-bold text-slate-900">Màn hình 2 — Chi tiết cảnh báo & Hướng dẫn thoát nạn</strong>
+              </div>
+              <p class="text-xs text-slate-500">
+                Hiển thị phân tích đa cảm biến, quy trình thoát nạn 3 bước bằng thang bộ, nút Báo an & Gọi hotline SOS khẩn cấp.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-blue-100/70 border border-blue-200 text-xs text-blue-950 font-medium">
+            🔒 <strong>Ranh giới an toàn:</strong> Cư dân không có nút điều khiển van, chuông hay thiết bị vật lý; không xem được dữ liệu các căn hộ khác.
+          </div>
+        </div>
+
+        <!-- Column 2: Ban Quản Lý -->
+        <div class="bg-gradient-to-b from-rose-50/50 to-white rounded-2xl p-6 border-2 border-rose-200 shadow-xs space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-rose-900 bg-rose-100 px-3 py-1 rounded-full">
+              2. Phân Hệ Ban Quản Lý (BMS)
+            </span>
+            <span class="text-xs text-rose-700 font-mono">Operations Console</span>
+          </div>
+
+          <div class="space-y-3">
+            <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-xs space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-md bg-rose-600 text-white flex items-center justify-center font-bold text-xs">1</span>
+                <strong class="text-xs font-bold text-slate-900">Màn hình 1 — Bảng giám sát toàn tòa nhà</strong>
+              </div>
+              <p class="text-xs text-slate-500">
+                Bảng Telemetry tổng hợp tất cả căn hộ, trạng thái phân loại và nút điều hướng duyệt sự cố khẩn cấp.
+              </p>
+            </div>
+
+            <div class="text-center font-bold text-rose-600 text-xs py-1">
+              ↓ Bấm duyệt phiếu sự cố cảnh báo
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-xs space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-md bg-rose-600 text-white flex items-center justify-center font-bold text-xs">2</span>
+                <strong class="text-xs font-bold text-slate-900">Màn hình 2 — Xác nhận hành động vật lý (HITL Gate)</strong>
+              </div>
+              <p class="text-xs text-slate-500">
+                Đồng hồ đếm ngược 02:00, đối chiếu dữ liệu gốc, nút Duyệt hoặc Từ chối bắt buộc ghi lý do (cấm duyệt hàng loạt).
+              </p>
+            </div>
+
+            <div class="text-center font-bold text-rose-600 text-xs py-1">
+              ↓ Sau khi ra quyết định xử lý
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-rose-200 shadow-xs space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center font-bold text-xs">3</span>
+                <strong class="text-xs font-bold text-slate-900">Màn hình 3 — Sổ nhật ký sự cố bất biến (Audit Log)</strong>
+              </div>
+              <p class="text-xs text-slate-500">
+                Lưu vết pháp lý bất biến kèm mã băm chữ ký phần cứng SHA-256 phục vụ công tác thanh tra PCCC.
+              </p>
+            </div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-rose-100/70 border border-rose-200 text-xs text-rose-950 font-medium">
+            ⚡ <strong>Quyền hạn vận hành:</strong> Toàn quyền can thiệp phần cứng tòa nhà nhưng chịu ràng buộc trách nhiệm pháp lý theo PRD FR-5 & FR-8.
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ============================================================== -->
+  <!-- MODALS SECTION                                                 -->
+  <!-- ============================================================== -->
+
+  <!-- 1. Audit Log Details Modal (PRD FR-8) -->
+  <div id="audit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs">
+            LOG
+          </div>
+          <h3 class="text-sm font-bold text-slate-900">Chi Tiết Bản Ghi Sự Cố Bất Biến</h3>
+        </div>
+        <button onclick="closeAuditModal()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <div id="modal-content" class="space-y-3 text-xs">
+        <!-- Injected via JS -->
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 text-right">
+        <button onclick="closeAuditModal()" class="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow-xs">
+          Đóng cửa sổ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. HITL Reject Reason Modal (Bắt buộc nhập lý do từ chối - PRD FR-5) -->
+  <div id="reject-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center font-bold text-xs">
+            ✕
+          </div>
+          <h3 class="text-sm font-bold text-slate-900">Từ Chối Lệnh & Ghi Nhận Trách Nhiệm</h3>
+        </div>
+        <button onclick="closeRejectModal()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 flex items-center justify-center font-bold text-sm">
+          ✕
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <p class="text-slate-600">
+          Theo tiêu chuẩn PRD FR-5, kỹ thuật viên bắt buộc phải cung cấp lý do từ chối lệnh để ghi nhận vào sổ nhật ký sự cố:
+        </p>
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Chọn lý do thông dụng:</label>
+          <select id="quick-reason-select" onchange="applyQuickReason()" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <option value="">-- Tự nhập lý do bên dưới --</option>
+            <option value="Báo động giả do nấu nướng sinh khói tạm thời">Báo động giả do nấu nướng sinh khói tạm thời</option>
+            <option value="Đã kiểm tra thực địa căn hộ: Khung cảnh an toàn">Đã kiểm tra thực địa căn hộ: Khung cảnh an toàn</option>
+            <option value="Cảm biến khói bị bụi bẩn cần hiệu chuẩn lại">Cảm biến khói bị bụi bẩn cần hiệu chuẩn lại</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-slate-700 font-bold mb-1">Nội dung giải trình chi tiết:</label>
+          <textarea id="reject-reason-text" rows="3" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-xl p-3 text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium" placeholder="Nhập lý do kỹ thuật chi tiết..."></textarea>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+        <button onclick="closeRejectModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold">
+          Hủy bỏ
+        </button>
+        <button onclick="submitRejectHITL()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-xs">
+          Xác nhận từ chối lệnh
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================== -->
+  <!-- JAVASCRIPT APPLICATION LOGIC & REALTIME STREAM ENGINE          -->
+  <!-- ============================================================== -->
+  <script>
+    // DATASET CHUẨN CẢM BIẾN (Chỉ hiển thị đơn vị đo: ppm, % LEL, °C, cm)
+    // Tích hợp chuỗi mẫu Telemetry từ data/sensors_sample.json
+    const SAMPLE_STREAM = [
+      { unix_time: 0,  timestamp: "2026-11-01 08:00:00", can_ho: "A101", nhiet: 24.52, khoi: 5.43, gas: 0.736, nuoc: 0.46, nhan: "binh_thuong" },
+      { unix_time: 3,  timestamp: "2026-11-01 08:00:03", can_ho: "A101", nhiet: 25.05, khoi: 4.61, gas: 0.783, nuoc: 0.37, nhan: "binh_thuong" },
+      { unix_time: 6,  timestamp: "2026-11-01 08:00:06", can_ho: "A101", nhiet: 25.11, khoi: 5.49, gas: 0.215, nuoc: 0.58, nhan: "binh_thuong" },
+      { unix_time: 9,  timestamp: "2026-11-01 08:00:09", can_ho: "A101", nhiet: 24.24, khoi: 7.71, gas: 0.917, nuoc: 0.65, nhan: "binh_thuong" },
+      { unix_time: 12, timestamp: "2026-11-01 08:00:12", can_ho: "A101", nhiet: 24.44, khoi: 5.49, gas: 0.364, nuoc: 0.47, nhan: "binh_thuong" }
+    ];
+
+    const DATASET = {
+      A101: {
+        apartment: 'A101',
+        residentName: 'Nguyễn Văn B (Cư dân A101)',
+        timestamp: '2026-11-01 08:00:12',
+        unix_time: 12,
+        khoi: 5.49,
+        gas: 0.364,
+        nhiet: 24.44,
+        nuoc: 0.47,
+        statusLabel: 'Bình thường',
+        isDanger: false,
+        greetingTitle: 'Không gian sống Căn hộ A101 đang an toàn',
+        greetingDesc: 'Tất cả 4 cảm biến môi trường (Khói, Khí Gas, Nhiệt độ, Mực nước) đều nằm trong giới hạn cho phép.',
+        alertTitle: 'Không phát hiện mối đe dọa cháy nổ hoặc ngập nước',
+        alertDesc: 'Hệ thống cảm biến IoT liên tục đo lường nhiệt độ, nồng độ khói, khí gas và mực nước mỗi 3 giây.',
+        feedItems: [
+          { time: '10:02:12', status: 'Bình thường', desc: 'Nhiệt độ 24.4°C · Khói 5.5 ppm' },
+          { time: '10:02:09', status: 'Bình thường', desc: 'Khí gas 0.36% LEL · Sàn khô' },
+          { time: '10:02:06', status: 'Bình thường', desc: 'Tất cả cảm biến ổn định' }
+        ]
+      },
+      A204: {
+        apartment: 'A204',
+        residentName: 'Trần Thị C (Cư dân A204)',
+        timestamp: '2026-11-01 08:00:15',
+        unix_time: 15,
+        khoi: 38.00,
+        gas: 1.250,
+        nhiet: 52.00,
+        nuoc: 0.50,
+        statusLabel: 'Nguy cơ cháy',
+        isDanger: true,
+        greetingTitle: 'CẢNH BÁO: Phát hiện bất thường tại Căn hộ A204!',
+        greetingDesc: 'Nhiệt độ môi trường và nồng độ khói cùng tăng nhanh vượt ngưỡng an toàn. Vui lòng kiểm tra ngay!',
+        alertTitle: 'Cảnh báo khẩn: Nhiệt độ và khói tăng vọt đồng thời',
+        alertDesc: 'Bấm để xem ngay hướng dẫn thoát hiểm và gọi đường dây nóng Ban Quản Lý →',
+        feedItems: [
+          { time: '10:02:15', status: 'Nguy cơ cháy', desc: 'Nhiệt độ 52°C · Khói 38 ppm tăng nhanh' },
+          { time: '10:02:12', status: 'Cảnh báo nhẹ', desc: 'Nhiệt độ tăng dần 44°C' },
+          { time: '10:02:09', status: 'Bình thường', desc: 'Khởi phát khói 18 ppm' }
+        ]
+      }
+    };
+
+    let currentRole = 'resident_A101';
+    let currentResidentTab = 1;
+    let currentBQLTab = 1;
+
+    // REALTIME STREAMING CONTROLS
+    let isStreamRunning = true;
+    let streamTimer = null;
+    let currentUnixTime = 12;
+    let stepCountdown = 3;
+    let streamStepCounter = 4; // Bắt đầu tại bản ghi index 4 của dataset mẫu
+
+    // Realtime clock
+    function updateLiveClock() {
+      const now = new Date();
+      const el = document.getElementById('live-clock');
+      if (el) {
+        el.textContent = now.toLocaleTimeString('vi-VN');
+      }
+    }
+    setInterval(updateLiveClock, 1000);
+    updateLiveClock();
+
+    // Toggle Play/Pause Realtime Stream
+    function toggleStream() {
+      isStreamRunning = !isStreamRunning;
+      const btn = document.getElementById('btn-toggle-stream');
+      const ping = document.getElementById('ping-indicator');
+      const dot = document.getElementById('dot-indicator');
+      const badge = document.getElementById('stream-status-badge');
+
+      if (isStreamRunning) {
+        btn.textContent = '⏸ Tạm dừng';
+        btn.className = 'text-[10px] bg-slate-700 hover:bg-slate-600 text-slate-200 px-2 py-1 rounded font-mono font-bold transition-all shadow-xs';
+        ping.className = 'animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75';
+        dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500';
+        badge.className = 'text-emerald-400 font-bold text-[11px] uppercase tracking-wider';
+        badge.textContent = 'REALTIME (3s)';
+      } else {
+        btn.textContent = '▶ Tiếp tục';
+        btn.className = 'text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-1 rounded font-mono font-bold transition-all shadow-xs';
+        ping.className = 'hidden';
+        dot.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400';
+        badge.className = 'text-amber-400 font-bold text-[11px] uppercase tracking-wider';
+        badge.textContent = 'PAUSED';
+      }
+    }
+
+    // Manual step forward (+3s)
+    function stepForwardStream() {
+      triggerRealtimeStep();
+      stepCountdown = 3;
+    }
+
+    // Trigger one realtime step (+3s)
+    function triggerRealtimeStep() {
+      currentUnixTime += 3;
+      streamStepCounter++;
+
+      const dateStr = '2026-11-01 08:00:' + String(currentUnixTime % 60).padStart(2, '0');
+
+      // Update Nav Unix Time
+      const navUnix = document.getElementById('nav-unix-time');
+      if (navUnix) navUnix.textContent = `unix_time: ${currentUnixTime}`;
+
+      // Update BQL table timestamps
+      const bqlTime = document.getElementById('bql-telemetry-time');
+      if (bqlTime) bqlTime.textContent = `unix_time: ${currentUnixTime} (Chu kỳ 3s)`;
+
+      // 1. UPDATE RESIDENT TELEMETRY IF ON RESIDENT VIEW
+      if (currentRole.startsWith('resident')) {
+        const apt = currentRole.split('_')[1];
+        const data = DATASET[apt];
+        let prevNhiet = data.nhiet;
+        let prevKhoi = data.khoi;
+        let prevGas = data.gas;
+        let prevNuoc = data.nuoc;
+
+        if (apt === 'A101') {
+          // Lấy tuần hoàn trong dataset mẫu, kèm dao động tự nhiên nhỏ
+          const sample = SAMPLE_STREAM[streamStepCounter % SAMPLE_STREAM.length];
+          // Jitter nhỏ ngẫu nhiên quanh chuẩn an toàn
+          const jitterNhiet = (Math.random() * 0.14 - 0.07);
+          const jitterKhoi = (Math.random() * 0.16 - 0.08);
+          const jitterGas = (Math.random() * 0.02 - 0.01);
+
+          data.nhiet = parseFloat((sample.nhiet + jitterNhiet).toFixed(2));
+          data.khoi = parseFloat(Math.max(2.0, (sample.khoi + jitterKhoi)).toFixed(2));
+          data.gas = parseFloat(Math.max(0.1, (sample.gas + jitterGas)).toFixed(3));
+          data.nuoc = parseFloat(sample.nuoc.toFixed(2));
+        } else if (apt === 'A204') {
+          // A204 đang ở tình huống sự cố cháy: Dao động ở ngưỡng cao
+          data.nhiet = parseFloat((52.00 + (Math.random() * 1.5 - 0.5)).toFixed(2));
+          data.khoi = parseFloat((38.00 + (Math.random() * 2.0 - 0.8)).toFixed(2));
+          data.gas = parseFloat((1.250 + (Math.random() * 0.05 - 0.02)).toFixed(3));
+          data.nuoc = 0.50;
+        }
+
+        // Cập nhật giá trị hiển thị trên các thẻ
+        updateSensorValue('val-khoi', data.khoi.toFixed(2), 'card-khoi');
+        updateSensorValue('val-gas', data.gas.toFixed(3), 'card-gas');
+        updateSensorValue('val-nhiet', data.nhiet.toFixed(2), 'card-nhiet');
+        updateSensorValue('val-nuoc', data.nuoc.toFixed(2), 'card-nuoc');
+
+        // Cập nhật Delta so với 3s trước
+        const dNhiet = (data.nhiet - prevNhiet);
+        const dKhoi = (data.khoi - prevKhoi);
+        const dGas = (data.gas - prevGas);
+        const dNuoc = (data.nuoc - prevNuoc);
+
+        const elDNhiet = document.getElementById('delta-nhiet');
+        if (elDNhiet) {
+          elDNhiet.textContent = (dNhiet >= 0 ? '+' : '') + dNhiet.toFixed(2) + ' °C';
+          elDNhiet.className = dNhiet > 0.5 ? 'font-mono font-bold text-rose-600' : 'font-mono font-bold text-emerald-600';
+        }
+
+        const elDKhoi = document.getElementById('delta-khoi');
+        if (elDKhoi) {
+          elDKhoi.textContent = (dKhoi >= 0 ? '+' : '') + dKhoi.toFixed(2) + ' ppm';
+          elDKhoi.className = dKhoi > 1.0 ? 'font-mono font-bold text-rose-600' : 'font-mono font-bold text-emerald-600';
+        }
+
+        const elDGas = document.getElementById('delta-gas');
+        if (elDGas) elDGas.textContent = (dGas >= 0 ? '+' : '') + dGas.toFixed(3) + ' %';
+
+        const elDNuoc = document.getElementById('delta-nuoc');
+        if (elDNuoc) elDNuoc.textContent = (dNuoc >= 0 ? '+' : '') + dNuoc.toFixed(2) + ' cm';
+
+        // Cập nhật Progress Bars
+        document.getElementById('bar-khoi').style.width = Math.min(100, (data.khoi / 40) * 100) + '%';
+        document.getElementById('bar-gas').style.width = Math.min(100, (data.gas / 5) * 100) + '%';
+        document.getElementById('bar-nhiet').style.width = Math.min(100, (data.nhiet / 60) * 100) + '%';
+        document.getElementById('bar-nuoc').style.width = Math.min(100, (data.nuoc / 20) * 100) + '%';
+
+        // Cập nhật banner timestamp
+        const resTime = document.getElementById('res-telemetry-time');
+        if (resTime) {
+          resTime.innerHTML = `<span class="text-indigo-600 font-extrabold">unix_time: ${currentUnixTime}</span> · ${dateStr}`;
+        }
+      }
+
+      // 2. UPDATE BQL DATA TABLE ROWS (Live packet highlight)
+      const bqlA101Nhiet = document.getElementById('bql-nhiet-A101');
+      const bqlA101Khoi = document.getElementById('bql-khoi-A101');
+      const bqlA101Gas = document.getElementById('bql-gas-A101');
+      const bqlA101Nuoc = document.getElementById('bql-nuoc-A101');
+      const bqlRowA101 = document.getElementById('bql-row-A101');
+
+      if (bqlA101Nhiet) {
+        const d101 = DATASET['A101'];
+        bqlA101Nhiet.textContent = `${d101.nhiet.toFixed(2)} °C`;
+        bqlA101Khoi.textContent = `${d101.khoi.toFixed(2)} ppm`;
+        bqlA101Gas.textContent = `${d101.gas.toFixed(3)} %`;
+        bqlA101Nuoc.textContent = `${d101.nuoc.toFixed(2)} cm`;
+
+        // Flash animation row
+        if (bqlRowA101) {
+          bqlRowA101.classList.add('flash-update');
+          setTimeout(() => bqlRowA101.classList.remove('flash-update'), 600);
+        }
+      }
+
+      // Update HITL numbers if open
+      const hitlNhiet = document.getElementById('hitl-nhiet');
+      if (hitlNhiet) hitlNhiet.textContent = `${DATASET['A204'].nhiet.toFixed(2)} °C`;
+      const hitlKhoi = document.getElementById('hitl-khoi');
+      if (hitlKhoi) hitlKhoi.textContent = `${DATASET['A204'].khoi.toFixed(2)} ppm`;
+    }
+
+    // Helper to flash value on card
+    function updateSensorValue(id, val, cardId) {
+      const el = document.getElementById(id);
+      if (el) {
+        el.textContent = val;
+        el.classList.add('text-indigo-600');
+        setTimeout(() => el.classList.remove('text-indigo-600'), 500);
+      }
+    }
+
+    // Heartbeat second ticker (1s countdown to next 3s sync)
+    setInterval(() => {
+      if (!isStreamRunning) return;
+
+      stepCountdown--;
+      if (stepCountdown <= 0) {
+        stepCountdown = 3;
+        triggerRealtimeStep();
+      }
+
+      // Update countdown badges
+      const resCount = document.getElementById('res-next-sync-countdown');
+      if (resCount) resCount.textContent = `Nhịp kế: ${stepCountdown}s`;
+
+      const bqlCount = document.getElementById('bql-next-sync-countdown');
+      if (bqlCount) bqlCount.textContent = `Gói tin kế tiếp: ${stepCountdown}s`;
+    }, 1000);
+
+    // Login As Persona Switcher
+    function loginAs(role) {
+      currentRole = role;
+
+      // Update Top Nav Switcher Active State
+      ['A101', 'A204', 'bql', 'flow'].forEach(r => {
+        const btn = document.getElementById('btn-login-' + r);
+        const isActive = (role === ('resident_' + r) || (r === 'bql' && role === 'bql') || (r === 'flow' && role === 'flow'));
+        if (isActive) {
+          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-indigo-600 text-white shadow-sm ring-1 ring-white/20';
+        } else {
+          btn.className = 'px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-white flex items-center gap-1.5';
+        }
+      });
+
+      // Hide all main views
+      document.getElementById('view-resident').classList.add('hidden');
+      document.getElementById('view-bql').classList.add('hidden');
+      document.getElementById('view-flow').classList.add('hidden');
+
+      if (role.startsWith('resident')) {
+        const apt = role.split('_')[1];
+        loadResidentData(apt);
+        document.getElementById('view-resident').classList.remove('hidden');
+        renderResidentIdentity(apt);
+        goToResidentOverview();
+      } else if (role === 'bql') {
+        document.getElementById('view-bql').classList.remove('hidden');
+        renderBQLIdentity();
+        switchBQLTab(1);
+      } else {
+        document.getElementById('view-flow').classList.remove('hidden');
+        renderFlowIdentity();
+      }
+    }
+
+    // Load Resident Telemetry
+    function loadResidentData(apt) {
+      const data = DATASET[apt] || DATASET['A101'];
+
+      // Populate metric digits & units (Chỉ ghi đơn vị: ppm, % LEL, °C, cm)
+      document.getElementById('val-khoi').textContent = data.khoi.toFixed(2);
+      document.getElementById('val-gas').textContent = data.gas.toFixed(3);
+      document.getElementById('val-nhiet').textContent = data.nhiet.toFixed(2);
+      document.getElementById('val-nuoc').textContent = data.nuoc.toFixed(2);
+
+      // Bar percentages
+      document.getElementById('bar-khoi').style.width = Math.min(100, (data.khoi / 40) * 100) + '%';
+      document.getElementById('bar-gas').style.width = Math.min(100, (data.gas / 5) * 100) + '%';
+      document.getElementById('bar-nhiet').style.width = Math.min(100, (data.nhiet / 60) * 100) + '%';
+      document.getElementById('bar-nuoc').style.width = Math.min(100, (data.nuoc / 20) * 100) + '%';
+
+      // Hero banner text
+      document.getElementById('res-title-greeting').textContent = data.greetingTitle;
+      document.getElementById('res-desc-greeting').textContent = data.greetingDesc;
+      document.getElementById('res-alert-card-title').textContent = data.alertTitle;
+      document.getElementById('res-alert-card-desc').textContent = data.alertDesc;
+      document.getElementById('res-alert-timestamp').textContent = data.timestamp;
+
+      // Realtime timestamp in banner
+      const resTime = document.getElementById('res-telemetry-time');
+      if (resTime) {
+        resTime.innerHTML = `<span class="text-indigo-600 font-extrabold">unix_time: ${currentUnixTime}</span> · 2026-11-01 08:00:${String(currentUnixTime % 60).padStart(2, '0')}`;
+      }
+
+      // Badges & styling conditional
+      const heroBanner = document.getElementById('res-hero-banner');
+      const badgeStatus = document.getElementById('res-badge-status');
+      const badgeKhoi = document.getElementById('badge-khoi');
+      const badgeNhiet = document.getElementById('badge-nhiet');
+      const barKhoi = document.getElementById('bar-khoi');
+      const barNhiet = document.getElementById('bar-nhiet');
+
+      if (data.isDanger) {
+        // High alert styling
+        heroBanner.className = 'rounded-2xl p-6 border transition-all duration-300 relative overflow-hidden bg-gradient-to-r from-rose-500/15 via-rose-500/10 to-white border-rose-300 danger-glow';
+        badgeStatus.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300';
+        badgeStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-rose-600 animate-ping"></span> Trạng thái khu: Nguy cơ cháy';
+
+        badgeKhoi.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300';
+        badgeKhoi.textContent = 'Vượt ngưỡng (x3)';
+        barKhoi.className = 'bg-rose-500 h-2 rounded-full transition-all duration-500';
+
+        badgeNhiet.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300';
+        badgeNhiet.textContent = 'Gia nhiệt cao';
+        barNhiet.className = 'bg-rose-500 h-2 rounded-full transition-all duration-500';
+
+        document.getElementById('subtext-khoi').textContent = 'Nồng độ khói tăng gấp 3 lần bình thường!';
+        document.getElementById('subtext-nhiet').textContent = 'Nhiệt độ tăng nhanh > 8°C/phút!';
+      } else {
+        // Safe styling
+        heroBanner.className = 'rounded-2xl p-6 border transition-all duration-300 relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-emerald-500/5 to-white border-emerald-200 safe-glow';
+        badgeStatus.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300';
+        badgeStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Trạng thái khu: Bình thường';
+
+        badgeKhoi.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+        badgeKhoi.textContent = 'An toàn';
+        barKhoi.className = 'bg-blue-500 h-2 rounded-full transition-all duration-500';
+
+        badgeNhiet.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+        badgeNhiet.textContent = 'Ổn định';
+        barNhiet.className = 'bg-rose-500 h-2 rounded-full transition-all duration-500';
+
+        document.getElementById('subtext-khoi').textContent = 'Ngưỡng chuẩn an toàn: < 15 ppm';
+        document.getElementById('subtext-nhiet').textContent = 'Môi trường tiêu chuẩn: 20°C - 35°C';
+      }
+
+      // Populate history feed
+      const feedContainer = document.getElementById('res-history-feed');
+      feedContainer.innerHTML = data.feedItems.map(item => `
+        <div class="flex items-start justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+          <div>
+            <div class="font-bold text-slate-800">${item.status}</div>
+            <div class="text-[11px] text-slate-500">${item.desc}</div>
+          </div>
+          <span class="font-mono text-[10px] text-slate-400">${item.time}</span>
+        </div>
+      `).join('');
+
+      // Populate Detail Tab Telemetry Grid (Chỉ ghi đơn vị đo)
+      const detailGrid = document.getElementById('res-detail-telemetry-grid');
+      detailGrid.innerHTML = `
+        <div class="p-3.5 rounded-xl ${data.isDanger ? 'bg-rose-50 border border-rose-200' : 'bg-slate-50 border border-slate-200'}">
+          <div class="text-[11px] text-slate-500 font-sans">Nồng độ khói</div>
+          <div class="text-xl font-bold font-mono ${data.isDanger ? 'text-rose-700' : 'text-slate-900'}">${data.khoi.toFixed(2)} ppm</div>
+          <div class="text-[10px] ${data.isDanger ? 'text-rose-600 font-bold' : 'text-emerald-600'} font-sans">
+            ${data.isDanger ? 'Gấp 3 lần baseline' : 'Chuẩn an toàn (< 15 ppm)'}
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-xl ${data.isDanger ? 'bg-rose-50 border border-rose-200' : 'bg-slate-50 border border-slate-200'}">
+          <div class="text-[11px] text-slate-500 font-sans">Nhiệt độ môi trường</div>
+          <div class="text-xl font-bold font-mono ${data.isDanger ? 'text-rose-700' : 'text-slate-900'}">${data.nhiet.toFixed(2)} °C</div>
+          <div class="text-[10px] ${data.isDanger ? 'text-rose-600 font-bold' : 'text-emerald-600'} font-sans">
+            ${data.isDanger ? 'Tăng 8°C/phút' : 'Nhiệt độ phòng ổn định'}
+          </div>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[11px] text-slate-500 font-sans">Khí Gas cháy</div>
+          <div class="text-xl font-bold font-mono text-slate-900">${data.gas.toFixed(3)} % LEL</div>
+          <div class="text-[10px] text-emerald-600 font-sans">Dưới ngưỡng nổ (< 5%)</div>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200">
+          <div class="text-[11px] text-slate-500 font-sans">Mực nước ngập sàn</div>
+          <div class="text-xl font-bold font-mono text-slate-900">${data.nuoc.toFixed(2)} cm</div>
+          <div class="text-[10px] text-emerald-600 font-sans">Sàn khô ráo (< 1 cm)</div>
+        </div>
+      `;
+    }
+
+    // Sub navigation renderers
+    function renderResidentIdentity(apt) {
+      const data = DATASET[apt] || DATASET['A101'];
+      document.getElementById('identity-banner').innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full ${data.isDanger ? 'bg-rose-500 animate-ping' : 'bg-emerald-500'}"></span>
+          <span>Tài khoản: <strong>${data.residentName}</strong></span>
+          <span class="text-slate-400">|</span>
+          <span class="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md font-bold text-[11px]">Căn hộ ${apt}</span>
+          <span class="text-slate-400 hidden md:inline">| Quyền: <em>Chỉ xem & Hướng dẫn (Read-only)</em></span>
+        </div>
+      `;
+
+      document.getElementById('sub-navigation-tabs').innerHTML = `
+        <button onclick="goToResidentOverview()" id="btn-sub-res-1" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs">
+          1. Tổng quan Căn hộ ${apt}
+        </button>
+        <button onclick="goToResidentDetail()" id="btn-sub-res-2" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900">
+          2. Chi tiết cảnh báo & Thoát nạn
+        </button>
+      `;
+    }
+
+    function renderBQLIdentity() {
+      document.getElementById('identity-banner').innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse"></span>
+          <span>Tài khoản: <strong>Kỹ sư BMS Nguyễn Văn A (ID: TECH-04)</strong></span>
+          <span class="text-slate-400">|</span>
+          <span class="bg-rose-50 text-rose-700 px-2 py-0.5 rounded-md font-bold text-[11px]">Ban Quản Lý Tòa Nhà</span>
+          <span class="text-slate-400 hidden md:inline">| Quyền: <em>Duyệt can thiệp phần cứng (HITL)</em></span>
+        </div>
+      `;
+
+      document.getElementById('sub-navigation-tabs').innerHTML = `
+        <button onclick="switchBQLTab(1)" id="btn-sub-bql-1" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs">
+          1. Giám sát các căn hộ
+        </button>
+        <button onclick="switchBQLTab(2)" id="btn-sub-bql-2" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 flex items-center gap-1">
+          <span>2. Duyệt lệnh HITL</span>
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
+        </button>
+        <button onclick="switchBQLTab(3)" id="btn-sub-bql-3" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900">
+          3. Sổ nhật ký sự cố (Audit)
+        </button>
+      `;
+    }
+
+    function renderFlowIdentity() {
+      document.getElementById('identity-banner').innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span>
+          <span>Chế độ: <strong>Sơ đồ Phân Quyền Kiến Trúc (RBAC Matrix)</strong></span>
+          <span class="text-slate-400">|</span>
+          <span class="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[11px]">Kiến trúc hệ thống</span>
+        </div>
+      `;
+      document.getElementById('sub-navigation-tabs').innerHTML = `
+        <span class="text-xs text-slate-500 font-medium">Bảo đảm phân lập ranh giới an toàn tuyệt đối</span>
+      `;
+    }
+
+    // Resident Sub Tabs Navigation
+    function goToResidentOverview() {
+      document.getElementById('res-tab-1').classList.remove('hidden');
+      document.getElementById('res-tab-2').classList.add('hidden');
+      const b1 = document.getElementById('btn-sub-res-1');
+      const b2 = document.getElementById('btn-sub-res-2');
+      if (b1) b1.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs';
+      if (b2) b2.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900';
+    }
+
+    function goToResidentDetail() {
+      document.getElementById('res-tab-1').classList.add('hidden');
+      document.getElementById('res-tab-2').classList.remove('hidden');
+      const b1 = document.getElementById('btn-sub-res-1');
+      const b2 = document.getElementById('btn-sub-res-2');
+      if (b1) b1.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900';
+      if (b2) b2.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs';
+    }
+
+    // BQL Tabs Navigation
+    function switchBQLTab(tab) {
+      ['1', '2', '3'].forEach(t => {
+        document.getElementById('bql-tab-' + t).classList.add('hidden');
+        const b = document.getElementById('btn-sub-bql-' + t);
+        if (b) {
+          if (t == tab) {
+            b.className = 'px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-2xs';
+          } else {
+            b.className = 'px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900';
+          }
+        }
+      });
+      document.getElementById('bql-tab-' + tab).classList.remove('hidden');
+    }
+
+    function goToHITL(apt) {
+      switchBQLTab(2);
+    }
+
+    // HITL Decision Handlers
+    function approveHITLAction() {
+      alert('✅ ĐÃ DUYỆT THỰC THI LỆNH VẬT LÝ!\n\n1. Kích hoạt chuông báo cháy phân vùng căn hộ A-204 thành công.\n2. Đóng van điện từ cấp gas tổng tầng 2 thành công.\n\nLệnh đã truyền xuống bộ điều khiển PLC và ghi nhận chữ ký điện tử vào Sổ nhật ký sự cố bất biến.');
+      switchBQLTab(3);
+    }
+
+    function openRejectHITLModal() {
+      document.getElementById('reject-modal').classList.remove('hidden');
+    }
+
+    function closeRejectModal() {
+      document.getElementById('reject-modal').classList.add('hidden');
+    }
+
+    function applyQuickReason() {
+      const select = document.getElementById('quick-reason-select');
+      const text = document.getElementById('reject-reason-text');
+      if (select.value) {
+        text.value = select.value;
+      }
+    }
+
+    function submitRejectHITL() {
+      const reason = document.getElementById('reject-reason-text').value.trim();
+      if (!reason) {
+        alert('⚠️ Bắt buộc phải nhập lý do từ chối để chịu trách nhiệm pháp lý theo PRD FR-5!');
+        return;
+      }
+
+      alert('❌ ĐÃ TỪ CHỐI LỆNH CAN THIỆP PHẦN CỨNG.\n\nLý do: "' + reason + '"\nĐã ghi nhận vào Sổ nhật ký sự cố bất biến.');
+      closeRejectModal();
+      switchBQLTab(3);
+    }
+
+    function confirmEvacuationSafety() {
+      alert('✅ ĐÃ GỬI XÁC NHẬN AN TOÀN!\nBan Quản Lý đã ghi nhận thông tin bạn và gia đình đã sơ tán an toàn tại tầng 1.');
+    }
+
+    function showQuickSupportModal() {
+      alert('📞 ĐƯỜNG DÂY NÓNG AN TOÀN TÒA NHÀ:\n- Trực ban PCCC: 024.3999.8888 (Nhánh 1)\n- Kỹ thuật điện/gas: 024.3999.8888 (Nhánh 2)\n- Ban Quản Lý: 024.3999.8888 (Nhánh 0)');
+    }
+
+    // Audit Log Modal (Chỉ ghi đơn vị đo chuẩn)
+    function showAuditModal(time, area, level, reason, status) {
+      const modal = document.getElementById('audit-modal');
+      const content = document.getElementById('modal-content');
+      content.innerHTML = `
+        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2.5 font-sans">
+          <div class="flex justify-between items-center"><span class="text-slate-500 font-medium">Mã sự cố:</span> <strong class="font-mono text-slate-900">INC-2026-883</strong></div>
+          <div class="flex justify-between items-center"><span class="text-slate-500 font-medium">Thời gian:</span> <strong class="font-mono text-slate-900">${time}</strong></div>
+          <div class="flex justify-between items-center"><span class="text-slate-500 font-medium">Vị trí:</span> <strong>Khu vực Căn hộ ${area} (Tầng 2)</strong></div>
+          <div class="flex justify-between items-center"><span class="text-slate-500 font-medium">Mức độ:</span> <span class="text-rose-600 font-bold">${level}</span></div>
+          <div class="flex justify-between items-center"><span class="text-slate-500 font-medium">Nguyên nhân:</span> <span class="text-slate-800">${reason}</span></div>
+          <div class="flex justify-between items-center"><span class="text-slate-500 font-medium">Trạng thái:</span> <strong class="text-emerald-700">${status}</strong></div>
+
+          <div class="border-t border-slate-200 pt-2.5 text-xs text-slate-700 space-y-1">
+            <div class="font-bold text-slate-900">Thông số cảm biến thời điểm kích hoạt:</div>
+            <div class="font-mono text-[11px] bg-white p-2 rounded-lg border border-slate-200">
+              Nhiệt độ: 52.00 °C | Khói: 38.00 ppm | Khí Gas: 1.250 % LEL | Nước: 0.50 cm
+            </div>
+            <div class="text-[11px] text-slate-500 flex items-center gap-1 pt-1">
+              <span>Chữ ký số phần cứng:</span>
+              <code class="font-mono text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded">SHA256:7f8a9bc4e12...</code>
+            </div>
+          </div>
+
+          <div class="border-t border-slate-200 pt-2 text-[11px] text-slate-600 flex items-center justify-between">
+            <span>Kỹ thuật viên phụ trách: <strong>Nguyễn Văn A (TECH-04)</strong></span>
+            <span class="text-emerald-600 font-bold">✓ Đã xác thực</span>
+          </div>
+        </div>
+      `;
+      modal.classList.remove('hidden');
+    }
+
+    function closeAuditModal() {
+      document.getElementById('audit-modal').classList.add('hidden');
+    }
+
+    // Countdown Timer 02:00 for HITL
+    let totalSeconds = 120;
+    setInterval(() => {
+      if (totalSeconds > 0) {
+        totalSeconds--;
+        const m = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
+        const s = String(totalSeconds % 60).padStart(2, '0');
+        const el = document.getElementById('countdown-timer');
+        if (el) {
+          el.textContent = `${m}:${s}`;
+          if (totalSeconds <= 30) {
+            el.classList.add('animate-pulse');
+          }
+        }
+      }
+    }, 1000);
+
+    // Initial boot as Resident A101
+    loginAs('resident_A101');
+  </script>
+</body>
+</html>
