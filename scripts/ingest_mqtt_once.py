@@ -1,15 +1,14 @@
 import json
 import os
 from pathlib import Path
-
-from src.agents.detection import danh_gia_nhiet_khoi
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 from dotenv import load_dotenv
 from paho.mqtt import subscribe
 from supabase import create_client
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
+from src.agents.detection import danh_gia_nhiet_khoi
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TOPIC = "toanha/canho/A101/telemetry"
