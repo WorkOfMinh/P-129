@@ -3,9 +3,7 @@ from typing import TypedDict
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
-
 from src.agents.evidence_analysis import phan_tich_bang_chung
-
 
 class IncidentState(TypedDict, total=False):
     su_kien_id: int

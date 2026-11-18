@@ -6,23 +6,28 @@ gửi lại kèm Command(resume=...) khi user duyệt/từ chối hành động 
 """
 
 import logging
-from datetime import UTC, datetime
+
+from fastapi import APIRouter, HTTPException
+from langgraph.types import Command
+from pydantic import BaseModel
+
 from itertools import count
-from pathlib import Path
-from threading import Lock
 from typing import Literal
 
-from dotenv import dotenv_values
-from fastapi import APIRouter, HTTPException
-from httpx import RequestError
+from src.agents.graph import agent
+from src.models.schemas import ChatRequest, ChatResponse
+from src.agents.incident_graph import build_incident_graph
 from langgraph.types import Command
+
+from datetime import datetime, timezone
+from pathlib import Path
+
+from dotenv import dotenv_values
+from httpx import RequestError
 from postgrest.exceptions import APIError
-from pydantic import BaseModel
 from supabase import create_client
 
-from src.agents.graph import agent
-from src.agents.incident_graph import build_incident_graph
-from src.models.schemas import ChatRequest, ChatResponse
+from threading import Lock
 
 logger = logging.getLogger("ai20k.api")
 
@@ -117,10 +122,10 @@ def lay_telemetry_moi_nhat():
         ) from exc
 
     return {
-        "thoi_gian_cap_nhat": datetime.now(UTC),
+        "thoi_gian_cap_nhat": datetime.now(timezone.utc),
         "du_lieu": result.data,
     }
-
+    
 class CanhBaoRequest(BaseModel):
     can_ho: str
     thoi_gian: str
@@ -171,7 +176,7 @@ def tao_su_co(canh_bao: CanhBaoRequest):
         "trang_thai": "cho_phe_duyet",
         **interrupts[0].value,
     }
-
+    
 @router.get("/su_co")
 def lay_su_co(trang_thai: Literal["cho_phe_duyet"] = "cho_phe_duyet"):
     with khoa_danh_sach:
@@ -194,7 +199,7 @@ def lay_su_co(trang_thai: Literal["cho_phe_duyet"] = "cho_phe_duyet"):
                 })
 
     return {"du_lieu": du_lieu}
-
+    
 @router.post("/su_co/{su_kien_id}/tu_choi")
 def tu_choi_su_co(su_kien_id: int):
     config = {"configurable": {"thread_id": f"su-kien-{su_kien_id}"}}
@@ -217,7 +222,7 @@ def tu_choi_su_co(su_kien_id: int):
         "quyet_dinh": result["quyet_dinh"],
         "bang_chung": result["bang_chung"],
     }
-
+    
 @router.post("/su_co/{su_kien_id}/dong_y")
 def dong_y_su_co(su_kien_id: int):
     config = {"configurable": {"thread_id": f"su-kien-{su_kien_id}"}}

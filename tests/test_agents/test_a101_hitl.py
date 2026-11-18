@@ -56,7 +56,7 @@ def test_a101_reject_preserves_evidence_and_skips_actuator():
     assert saved.values["bang_chung"] == evidence
     assert saved.next == ()
     actuator.assert_not_called()
-
+    
 def test_a101_approve_calls_mock_actuator_once():
     evidence = [
         {
