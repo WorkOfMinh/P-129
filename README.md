@@ -141,7 +141,7 @@ bằng bất kỳ markdown viewer nào.
 | 2 | README | copy `README_boilerplate.md` thành `README.md` | Khung sẵn |
 | 3 | Architecture diagram | `docs/architecture_diagram.md` | Khung sẵn |
 | 4 | AI logs | LangSmith (3 biến môi trường) + auto AI usage logging | Cấu hình sẵn |
-| 5 | Live URL | [Demo SentinelIoT](https://sentineliot.vercel.app/) | [Báo cáo giao diện](docs/ui_flow.md#demo-sentineliot) |
+| 5 | Live URL | [Demo SentinelIoT](https://sentineliot.vercel.app/) | [Báo cáo giao diện](docs/ui_flow.md) |
 | 6 | Video demo | `presentation/` | Đội tự làm |
 | 7 | Pitch deck | `presentation/` | Đội tự làm |
 | 8 | Development journal | `JOURNAL.md` | Khung sẵn |

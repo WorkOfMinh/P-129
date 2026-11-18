@@ -1,9 +1,7 @@
 # BẢN ĐẶC TẢ THIẾT KẾ WIREFRAME & UI FLOW v2.0
-## Bài toán: SC-04 — SentinelIoT (AI Agent Giám sát & Điều phối An toàn Chung cư)
+## Bài toán: SC-04 — [SentinelIoT](https://sentineliot.vercel.app/) (AI Agent Giám sát & Điều phối An toàn Chung cư)
 *Tái cấu trúc: Phân định rạch ròi 2 Phân hệ: Cư dân (Resident App) & Ban Quản Lý (BMS Technician Console)*
 *Căn cứ: `02_prd_v3.md` (Mục 2-3: Core User Flows, FR-3, FR-5, FR-8)*
-
-[Mở demo SentinelIoT](https://sentineliot.vercel.app/) hoặc chọn [giao diện theo vai trò](ui_flow.md#demo-sentineliot).
 
 ---
 
@@ -14,12 +12,12 @@ Nhằm đảm bảo an toàn vận hành và bảo vệ tính mạng cư dân th
 1. **Phân hệ Cư dân (Resident Portal):**
    - **Tư tưởng chủ đạo:** *Quan sát không gian sống cá nhân & Hướng dẫn cứu nạn khẩn cấp*.
    - **Quyền hạn:** Hoàn toàn **Chỉ đọc (Read-only)**. Cư dân không có thẩm quyền điều khiển hạ tầng cơ điện tòa nhà (không có nút ngắt van gas trung tâm hay tắt chuông báo động tòa nhà).
-   - **Giao diện:** Tối giản, tập trung vào trực quan hóa nguy cơ và hành động sơ tán an toàn.
+   - **Giao diện:** Tối giản, tập trung vào trực quan hóa nguy cơ và hành động sơ tán an toàn. Mở giao diện [Cư dân A101](https://sentineliot.vercel.app/#cu-dan-a101) hoặc [Cư dân A204](https://sentineliot.vercel.app/#cu-dan-a204).
 
 2. **Phân hệ Ban Quản Lý (BMS Operations Console):**
    - **Tư tưởng chủ đạo:** *Thẩm định bằng chứng kỹ thuật, Ra quyết định có trách nhiệm (HITL) & Truy vết pháp lý*.
    - **Quyền hạn:** Kỹ thuật viên có quyền phê duyệt/từ chối hành động tác động vật lý xuống tòa nhà.
-   - **Giao diện:** Hiển thị chi tiết số liệu cảm biến thô (telemetry), hệ số tương quan AI, đồng hồ đếm ngược an toàn và sổ nhật ký bất biến.
+   - **Giao diện:** Hiển thị chi tiết số liệu cảm biến thô (telemetry), hệ số tương quan AI, đồng hồ đếm ngược an toàn và sổ nhật ký bất biến. Mở giao diện [Kỹ thuật BQL](https://sentineliot.vercel.app/#ky-thuat-bql).
 
 ---
 

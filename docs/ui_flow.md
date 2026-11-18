@@ -2,15 +2,6 @@
 ## Phân luồng Kiến trúc Độc lập: Phân hệ Cư dân & Phân hệ Ban Quản Lý (BQL)
 **Phiên bản:** v2.0 | **Căn cứ:** `02_prd_v3.md` (User Flows 2-3, FR-3, FR-5, FR-8)
 
-## Demo SentinelIoT
-
-[Mở demo SentinelIoT](https://sentineliot.vercel.app/). Bản demo sử dụng dữ liệu IoT mô phỏng.
-
-- [Cư dân A101](https://sentineliot.vercel.app/#cu-dan-a101)
-- [Cư dân A204](https://sentineliot.vercel.app/#cu-dan-a204)
-- [Kỹ thuật BQL](https://sentineliot.vercel.app/#ky-thuat-bql)
-- [Luồng RBAC](https://sentineliot.vercel.app/#luong-rbac)
-
 ---
 
 ## 1. TỔNG QUAN KIẾN TRÚC PHÂN LUỒNG & DỮ LIỆU TELEMETRY
@@ -30,10 +21,11 @@ Hệ thống SentinelIoT tiếp nhận luồng dữ liệu thời gian thực (c
 | `nhan` | String | Nhãn phân loại sự cố từ Agent | `binh_thuong` | `nguy_co_chay`, `ro_ri_gas`, `ngap_nuoc` |
 
 ### 1.2 Cơ chế Giả lập Đăng nhập (Demo Persona Switcher)
-Nhằm phục vụ đánh giá Demo Day nhanh chóng mà không làm gián đoạn trải nghiệm bằng form đăng nhập mật khẩu, hệ thống trang bị thanh **Demo Persona Switcher** ở đầu trang cho phép chuyển đổi tức thì giữa các danh tính:
-1. **👤 Cư dân A101 (Tài khoản An toàn):** Trải nghiệm giao diện cư dân với dữ liệu mẫu `binh_thuong` (Nhiệt: 24.44°C, Khói: 5.49 ppm, Gas: 0.364%, Nước: 0.47 cm).
-2. **⚠️ Cư dân A204 (Tài khoản Sự cố Cháy):** Trải nghiệm giao diện cư dân nhận cảnh báo đỏ `nguy_co_chay` (Nhiệt: 52.00°C, Khói: 38.00 ppm), xem lý do AI và quy trình thoát nạn.
-3. **🛡️ Kỹ thuật viên BMS (Tài khoản Toàn quyền):** Trải nghiệm giao diện BQL với bảng giám sát toàn tòa nhà, điểm duyệt can thiệp vật lý HITL (Countdown 02:00) và Sổ nhật ký Audit Log bất biến.
+Trong [demo SentinelIoT](https://sentineliot.vercel.app/), thanh **Demo Persona Switcher** ở đầu trang cho phép chuyển vai trò và xem dữ liệu IoT mô phỏng.
+1. **👤 [Cư dân A101](https://sentineliot.vercel.app/#cu-dan-a101) (Tài khoản An toàn):** Trải nghiệm giao diện cư dân với dữ liệu mẫu `binh_thuong` (Nhiệt: 24.44°C, Khói: 5.49 ppm, Gas: 0.364%, Nước: 0.47 cm).
+2. **⚠️ [Cư dân A204](https://sentineliot.vercel.app/#cu-dan-a204) (Tài khoản Sự cố Cháy):** Trải nghiệm giao diện cư dân nhận cảnh báo đỏ `nguy_co_chay` (Nhiệt: 52.00°C, Khói: 38.00 ppm), xem lý do AI và quy trình thoát nạn.
+3. **🛡️ [Kỹ thuật viên BMS](https://sentineliot.vercel.app/#ky-thuat-bql) (Tài khoản Toàn quyền):** Trải nghiệm giao diện BQL với bảng giám sát toàn tòa nhà, điểm duyệt can thiệp vật lý HITL (Countdown 02:00) và Sổ nhật ký Audit Log bất biến.
+4. **[Luồng RBAC](https://sentineliot.vercel.app/#luong-rbac)** Xem sơ đồ phân quyền giữa cư dân và kỹ thuật BQL.
 
 ```
                                   [ HỆ THỐNG CẢM BIẾN IoT TÒA NHÀ ]
