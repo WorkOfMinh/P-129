@@ -1,6 +1,8 @@
 # BRIEF — SC-04: SentinelIoT
 *AI Agent Phát Hiện Bất Thường Cảm Biến IoT (Rò Gas, Cháy, Ngập Nước)*
 
+**Nhóm:** 4/4 | **Ngày:** 12/11/2026 | **v2.0**
+
 ---
 
 ### 1. Vấn đề
