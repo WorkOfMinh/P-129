@@ -2,6 +2,15 @@
 ## Phân luồng Kiến trúc Độc lập: Phân hệ Cư dân & Phân hệ Ban Quản Lý (BQL)
 **Phiên bản:** v2.0 | **Căn cứ:** `02_prd_v3.md` (User Flows 2-3, FR-3, FR-5, FR-8)
 
+## Demo SentinelIoT
+
+[Mở demo SentinelIoT](https://sentineliot.vercel.app/). Bản demo sử dụng dữ liệu IoT mô phỏng.
+
+- [Cư dân A101](https://sentineliot.vercel.app/#cu-dan-a101)
+- [Cư dân A204](https://sentineliot.vercel.app/#cu-dan-a204)
+- [Kỹ thuật BQL](https://sentineliot.vercel.app/#ky-thuat-bql)
+- [Luồng RBAC](https://sentineliot.vercel.app/#luong-rbac)
+
 ---
 
 ## 1. TỔNG QUAN KIẾN TRÚC PHÂN LUỒNG & DỮ LIỆU TELEMETRY

@@ -3,6 +3,8 @@
 *Tái cấu trúc: Phân định rạch ròi 2 Phân hệ: Cư dân (Resident App) & Ban Quản Lý (BMS Technician Console)*
 *Căn cứ: `02_prd_v3.md` (Mục 2-3: Core User Flows, FR-3, FR-5, FR-8)*
 
+[Mở demo SentinelIoT](https://sentineliot.vercel.app/) hoặc chọn [giao diện theo vai trò](ui_flow.md#demo-sentineliot).
+
 ---
 
 ## 1. NGUYÊN TẮC THIẾT KẾ PHÂN PHÂN HỆ
