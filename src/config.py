@@ -23,22 +23,21 @@ class Settings(BaseSettings):
     # LLM — cascade router: mỗi task type một model (bài học cost-management:
     # không đốt model mạnh cho việc classify). Judge PHẢI khác model generator
     # để tránh self-preference bias (bài học team 002 — eval judge riêng).
+
+    llm_provider: Literal["openai"] = "openai"  # hiện chỉ hỗ trợ OpenAI (langchain_openai)
     openai_api_key: str = ""
-    model_name: str = "gpt-4o"  # legacy alias cho model_generate
-    model_classify: str = "gpt-4o-mini"  # cheap: classify / route / quyết định tool
-    model_generate: str = "gpt-4o"  # strong: sinh câu trả lời cuối
-    model_judge: str = "gpt-4o-mini"  # judge: khác model_generate mặc định
-    llm_temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    
+    openai_max_tokens: int = Field(default=2048, ge=1, le=128000)  # giới hạn độ dài output
+    model_classify: str = "gpt-6-luna"  # cheap: classify / route / quyết định tool
+    model_generate: str = "gpt-6.1-sol"  # strong: sinh câu trả lời cuối
+    model_judge: str = "gpt-6.1-terra"  # judge: khác model_generate mặc định
 
     # Agent loop — escape hatch chống loop vô hạn (bài học team 011:
     # luôn phải có một đường tới END dù LLM cứ đòi gọi tool mãi)
     agent_max_iterations: int = Field(default=8, ge=1, le=50)
 
-    # Database
-    database_url: str = "sqlite:///./data/app.db"
-
-    # Vector Store
-    chroma_persist_dir: str = "./data/chroma"
+    database_url: str = "sqlite:///./data/app.db" # Database
+    chroma_persist_dir: str = "./data/chroma" # Vector Store
 
 
 @lru_cache

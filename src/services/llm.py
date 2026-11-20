@@ -14,19 +14,10 @@ router 2 tầng). `get_llm(task_type)` là điểm duy nhất quyết định mo
 """
 
 from typing import Literal
-
 from langchain_openai import ChatOpenAI
-
 from src.config import get_settings
 
 TaskType = Literal["classify", "generate", "judge"]
-
-_TASK_TO_SETTING = {
-    "classify": "model_classify",
-    "generate": "model_generate",
-    "judge": "model_judge",
-}
-
 
 def get_llm(task_type: TaskType = "generate") -> ChatOpenAI:
     """Trả về LLM phù hợp với loại task (cascade router).
@@ -40,6 +31,9 @@ def get_llm(task_type: TaskType = "generate") -> ChatOpenAI:
     """
     settings = get_settings()
 
+    if settings.llm_provider != "openai":
+        raise ValueError(f"LLM_PROVIDER={settings.llm_provider!r} chưa được hỗ trợ — chỉ có 'openai'.")
+
     if task_type == "judge" and settings.model_judge == settings.model_generate:
         raise ValueError(
             "MODEL_JUDGE phải khác MODEL_GENERATE — judge trùng generator "
@@ -47,12 +41,12 @@ def get_llm(task_type: TaskType = "generate") -> ChatOpenAI:
             "Sửa MODEL_JUDGE trong .env."
         )
 
-    model_name = getattr(settings, _TASK_TO_SETTING[task_type])
-    # Judge cần temperature thấp để chấm điểm ổn định, không sáng tạo.
-    temperature = 0.0 if task_type in ("classify", "judge") else settings.llm_temperature
+    model_name = getattr(settings, f"model_{task_type}")
 
+    # Không truyền temperature: model GPT-6 trên OpenAI chỉ nhận giá trị mặc định (1),
+    # đặt 0.0 hay 0.7 đều bị lỗi 400.
     return ChatOpenAI(
         model=model_name,
         api_key=settings.openai_api_key,
-        temperature=temperature,
+        max_tokens=settings.openai_max_tokens,
     )

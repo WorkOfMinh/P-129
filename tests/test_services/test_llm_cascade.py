@@ -40,9 +40,7 @@ def test_judge_same_model_as_generator_raises():
     os.environ.pop("MODEL_JUDGE")
 
 
-def test_classify_and_judge_run_at_low_temperature():
-    settings = get_settings()
-    settings.llm_temperature = 0.9  # generate có thể nóng
-    assert get_llm("classify").temperature == 0.0
-    assert get_llm("judge").temperature == 0.0
-    assert get_llm("generate").temperature == 0.9
+def test_temperature_not_sent_for_any_task():
+    # Model GPT-6 chỉ nhận temperature mặc định → không được truyền tham số này.
+    for task in ("classify", "generate", "judge"):
+        assert get_llm(task).temperature is None
